@@ -1,0 +1,85 @@
+:root {
+  --awesome: #DC3522;
+  --text: #333333;
+  --darktext: #414141;
+  --gray: #5D5D5D;
+  --light: #999999;
+}
+@page { size: A4; margin: 0.8cm 1.4cm 1.8cm 1.4cm; }
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; color: var(--text);
+  font-family: "Roboto", "Noto Serif CJK SC", sans-serif;
+  font-size: 9pt; line-height: 1.35;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.page { padding: 0.8cm 1.4cm 1.8cm 1.4cm; }
+@media print { .page { padding: 0; } }
+
+/* 页头 */
+.header { position: relative; text-align: center; margin-bottom: 14px; }
+.header .name { font-size: 16pt; letter-spacing: 1px; }
+.header .name .first { color: var(--gray); font-weight: 300; }
+.header .name .last { color: var(--text); font-weight: 700; }
+.header .position {
+  color: var(--awesome); font-size: 7.6pt; font-variant: small-caps;
+  letter-spacing: .5px; margin-top: 4px;
+}
+.header .contacts {
+  color: var(--text); font-size: 9pt; margin-top: 6px;
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 0 6px;
+}
+.header .contacts .sep { color: var(--light); }
+.header .contacts .item { display: inline-flex; align-items: center; gap: 4px; }
+.header .contacts svg { width: 9pt; height: 9pt; fill: var(--text); }
+.header .photo {
+  position: absolute; top: 0; right: 0; width: 2.2cm; height: 2.2cm;
+  object-fit: cover; border-radius: 3px;
+}
+
+/* 段标题 */
+.section { margin-top: 16px; }
+.section-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 16pt; font-weight: 700; color: var(--text); margin-bottom: 8px;
+}
+.section-title .hl::first-letter { color: var(--awesome); }
+.section-title::after {
+  content: ""; flex: 1 1 auto; height: 1px; background: var(--text); opacity: .85;
+}
+
+/* 段落 */
+.paragraph { color: var(--text); text-align: justify; }
+
+/* 技能 */
+.skills { display: table; width: 100%; }
+.skill-row { display: table-row; }
+.skill-label {
+  display: table-cell; white-space: nowrap; padding: 2px 12px 2px 0;
+  font-weight: 700; color: var(--darktext); font-size: 10pt; width: 1%; vertical-align: baseline;
+}
+.skill-items { display: table-cell; color: var(--text); vertical-align: baseline; padding: 2px 0; }
+
+/* 条目通用 */
+.entry { margin-bottom: 10px; }
+.entry-head { display: flex; justify-content: space-between; align-items: baseline; }
+.entry-head .left { display: flex; flex-direction: column; }
+.entry-head .right { text-align: right; white-space: nowrap; padding-left: 12px; }
+.entry-title { font-size: 10pt; font-weight: 700; color: var(--darktext); }
+.entry-org { font-size: 8pt; font-variant: small-caps; color: var(--gray); margin-top: 2px; }
+.entry-location { font-size: 9pt; font-style: italic; color: var(--awesome); }
+.entry-date { font-size: 8pt; font-style: italic; color: var(--gray); margin-top: 2px; }
+.entry-link a { font-family: monospace; font-size: 8pt; color: var(--darktext); text-decoration: none; }
+.entry-items { margin: 4px 0 0; padding-left: 16px; }
+.entry-items li { margin: 2px 0; color: var(--text); }
+.entry-items li::marker { color: var(--text); }
+
+/* 教育（两行无 bullet）：结构同 entry，但左侧只有 degree + org */
+.edu .entry-title { font-weight: 700; }
+
+/* 底部“更多信息” */
+.more { text-align: center; margin-top: 28px; }
+.more a { color: var(--awesome); }
+
+/* 页脚（screen 显示；print 用 Playwright footer 生成页码） */
+.footer { display: none; }

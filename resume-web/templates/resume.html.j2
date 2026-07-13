@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>{{ meta.name | L }}</title>
+<style>{{ css }}</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    {% if photo_exists %}<img class="photo" src="{{ meta.photo }}" alt="">{% endif %}
+    <div class="name">
+      {% set full = meta.name | L %}
+      {% if lang == 'en' %}
+        {% set parts = full.split(' ', 1) %}
+        <span class="first">{{ parts[0] }}</span> <span class="last">{{ parts[1] if parts|length > 1 else '' }}</span>
+      {% else %}
+        <span class="first">{{ full[:meta.name_split_zh] }}</span><span class="last">{{ full[meta.name_split_zh:] }}</span>
+      {% endif %}
+    </div>
+    <div class="position">{{ meta.position | L }}</div>
+    <div class="contacts">
+      {% set c = meta.contacts %}
+      {% set items = [] %}
+      <span class="item">{{ icon('phone') }}{{ c.mobile }}</span><span class="sep">|</span>
+      <span class="item">{{ icon('email') }}{{ c.email }}</span><span class="sep">|</span>
+      <span class="item">{{ icon('home') }}{{ c.homepage }}</span><span class="sep">|</span>
+      <span class="item">{{ icon('github') }}{{ c.github }}</span><span class="sep">|</span>
+      <span class="item">{{ icon('wechat') }}{{ c.wechat }}</span>
+    </div>
+  </header>
+
+  {% for s in sections %}
+  <section class="section {{ 'edu' if s.type == 'education' else '' }}">
+    <div class="section-title">{{ section_title(s.title | L) }}</div>
+
+    {% if s.type == 'paragraph' %}
+      <div class="paragraph">{{ s.body | L }}</div>
+
+    {% elif s.type == 'skills' %}
+      <div class="skills">
+        {% for row in s.rows %}
+        <div class="skill-row">
+          <div class="skill-label">{{ row.label | L }}</div>
+          <div class="skill-items">{{ row.items | L }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+    {% elif s.type == 'education' %}
+      {% for e in s.entries %}
+      <div class="entry">
+        <div class="entry-head">
+          <div class="left">
+            <span class="entry-title">{{ e.degree | L }}</span>
+            <span class="entry-org">{{ e.org | L }}</span>
+          </div>
+          <div class="right">
+            <div class="entry-location">{{ e.location | L }}</div>
+            <div class="entry-date">{{ e.date | L }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+    {% elif s.type == 'entries' %}
+      {% for e in s.entries %}
+      <div class="entry">
+        <div class="entry-head">
+          <div class="left">
+            <span class="entry-title">{{ e.title | L }}</span>
+            <span class="entry-org">{{ e.org | L }}</span>
+            {% if e.link %}<span class="entry-link"><a href="{{ e.link.url }}">{{ e.link.label }}</a></span>{% endif %}
+          </div>
+          <div class="right">
+            <div class="entry-location">{{ e.location | L }}</div>
+            {% if (e.date | L) %}<div class="entry-date">{{ e.date | L }}</div>{% endif %}
+          </div>
+        </div>
+        {% if e.get('items') %}
+        <ul class="entry-items">
+          {% for it in e['items'] %}<li>{{ it | L }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <div class="more">
+    {{ footer_more.text | L }}<a href="{{ footer_more.url }}">{{ footer_more.url }}</a>
+  </div>
+
+</div>
+</body>
+</html>

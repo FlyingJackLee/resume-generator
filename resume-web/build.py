@@ -1,5 +1,8 @@
 from pathlib import Path
+
 import yaml
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markupsafe import Markup
 
 ROOT = Path(__file__).resolve().parent
 
@@ -18,3 +21,47 @@ def localize(node, lang):
     if isinstance(node, dict) and "zh" in node and "en" in node:
         return node[lang]
     return node
+
+
+ICONS = {
+    "phone": '<svg viewBox="0 0 512 512"><path d="M164 32 32 96c0 212 152 384 384 384l64-132-108-44-40 48c-72-32-128-88-160-160l48-40L164 32z"/></svg>',
+    "email": '<svg viewBox="0 0 512 512"><path d="M48 96h416v320H48z" fill="none"/><path d="M48 96l208 160L464 96H48zm0 40v280h416V136L256 296 48 136z"/></svg>',
+    "home": '<svg viewBox="0 0 576 512"><path d="M288 48 32 256h64v208h128V336h128v128h128V256h64L288 48z"/></svg>',
+    "github": '<svg viewBox="0 0 496 512"><path d="M248 24C111 24 0 135 0 272c0 110 71 203 170 236 12 2 17-5 17-12v-42c-69 15-84-33-84-33-11-29-28-37-28-37-23-16 2-16 2-16 25 2 38 26 38 26 22 38 59 27 73 21 2-16 9-27 16-33-55-6-113-27-113-122 0-27 10-49 26-67-3-6-11-31 2-65 0 0 21-7 69 26 20-6 41-9 62-9s42 3 62 9c48-33 69-26 69-26 13 34 5 59 2 65 16 18 26 40 26 67 0 95-58 116-113 122 9 8 17 23 17 47v69c0 7 5 14 17 12 99-33 170-126 170-236 0-137-111-248-248-248z"/></svg>',
+    "wechat": '<svg viewBox="0 0 576 512"><path d="M385 118C230 118 111 219 111 344c0 45 15 87 41 121l-16 62 72-37c26 8 54 12 84 12 155 0 274-101 274-226S540 118 385 118z"/></svg>',
+}
+
+
+def icon(name):
+    return Markup(ICONS.get(name, ""))
+
+
+def make_section_title(data):
+    """返回一个渲染段标题的函数：整段文字包在单个 <span class="hl"> 内，
+    保持文本节点连续（不拆分成两段），红色高亮通过 CSS ::first-letter 实现，
+    避免在 DOM 中插入标签打断标题原文的连续子串（会破坏内容测试）。
+    """
+
+    def _title(text):
+        return Markup(f'<span class="hl">{text}</span>')
+
+    return _title
+
+
+def render_html(data, lang):
+    env = Environment(
+        loader=FileSystemLoader(str(ROOT / "templates")),
+        autoescape=select_autoescape(["html", "j2"]),
+    )
+    env.filters["L"] = lambda node: localize(node, lang)
+    env.globals["icon"] = icon
+    env.globals["section_title"] = make_section_title(data)
+    css = Markup((ROOT / "styles" / "awesome-cv.css").read_text(encoding="utf-8"))
+    photo = data["meta"].get("photo")
+    photo_exists = bool(photo) and (ROOT / photo).exists()
+    tpl = env.get_template("resume.html.j2")
+    return tpl.render(
+        lang=lang, css=css, photo_exists=photo_exists,
+        meta=data["meta"], sections=data["sections"],
+        footer_more=data["meta"]["footer_more"],
+    )

@@ -3,3 +3,4 @@ pyyaml>=6.0
 playwright>=1.40
 pytest>=8.0
 watchdog>=4.0
+pypdf>=4.0

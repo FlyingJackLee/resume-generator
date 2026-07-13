@@ -41,8 +41,8 @@
       <div class="skills">
         {% for row in s.rows %}
         <div class="skill-row">
-          <div class="skill-label">{{ row.label | L }}</div>
-          <div class="skill-items">{{ row.items | L }}</div>
+          <div class="skill-label">{{ row['label'] | L }}</div>
+          <div class="skill-items">{{ row['items'] | L }}</div>
         </div>
         {% endfor %}
       </div>

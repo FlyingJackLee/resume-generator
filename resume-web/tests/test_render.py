@@ -35,3 +35,10 @@ def test_render_includes_inline_css_and_icons():
     assert "--awesome: #DC3522" in html
     assert "<svg" in html  # 内联图标
     assert '"Roboto"' in html  # 内联 CSS 未被转义
+
+
+def test_skills_items_render_not_method_repr():
+    html = render_html(load_data(), "zh")
+    assert "Mybatis" in html          # real skills text present
+    assert "Spring Cloud" in html
+    assert "built-in method" not in html   # dict.items method repr must NOT leak

@@ -88,7 +88,7 @@
   pdfsubject={},
   pdfkeywords={}
 }
-
+\RequirePackage{hyperref}
 
 %-------------------------------------------------------------------------------
 %                Configuration for directory locations
@@ -179,9 +179,21 @@
   BoldItalicFont=*-MediumItalic,
 ]{Roboto}
 
-\newcommand*{\footerfont}{\sourcesanspro}
-\newcommand*{\bodyfont}{\sourcesanspro}
-\newcommand*{\bodyfontlight}{\sourcesansprolight}
+
+% 1. 无衬线字体
+\newfontfamily\cjkfontsf{Noto Sans CJK SC}[
+  BoldFont = NotoSansCJKsc-Bold
+]
+% 2. 等宽字体
+\newfontfamily\cjkfonttt{Noto Sans Mono CJK SC}
+
+\newcommand*{\footerfont}{\cjkfontsf}
+\newcommand*{\bodyfont}{\cjkfontsf}
+\newcommand*{\bodyfontlight}{\cjkfontsf}
+
+% \newcommand*{\footerfont}{\iflanguage{chinese}{\cjkfontsf}{\roboto}}
+% \newcommand*{\bodyfont}{\iflanguage{chinese}{\cjkfontsf}{\sourcesanspro}}
+% \newcommand*{\bodyfontlight}{\iflanguage{chinese}{\cjkfontsf}{\sourcesansprolight}}
 
 %-------------------------------------------------------------------------------
 %                Configuration for styles
@@ -683,7 +695,7 @@
 % Define an environment for cvskill
 \newenvironment{cvskills}{%
   \vspace{\acvSectionContentTopSkip}
-  \vspace{-2.0mm}
+  \vspace{-4.0mm}
   \begin{center}
     \setlength\tabcolsep{1ex}
     \setlength{\extrarowheight}{0pt}

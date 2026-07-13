@@ -17,9 +17,11 @@ def load_data(path="data/resume.yaml"):
 
 
 def localize(node, lang):
-    """若 node 是含 zh/en 的 dict 则取对应语言，否则原样返回。"""
-    if isinstance(node, dict) and "zh" in node and "en" in node:
-        return node[lang]
+    """若 node 是含 zh 或 en 的 dict，取对应语言；缺失请求语言时回退到另一种；否则原样返回。"""
+    if isinstance(node, dict) and ("zh" in node or "en" in node):
+        if lang in node:
+            return node[lang]
+        return node.get("zh", node.get("en"))
     return node
 
 
@@ -94,19 +96,21 @@ FOOTER_HTML = (
 def export_pdf(html_path: Path, pdf_path: Path, footer_label: str):
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page()
-        page.goto(html_path.as_uri())
-        page.emulate_media(media="print")
-        page.pdf(
-            path=str(pdf_path),
-            format="A4",
-            print_background=True,
-            display_header_footer=True,
-            header_template="<div></div>",
-            footer_template=FOOTER_HTML.format(label=footer_label),
-            margin={"top": "0.8cm", "right": "1.4cm", "bottom": "1.8cm", "left": "1.4cm"},
-        )
-        browser.close()
+        try:
+            page = browser.new_page()
+            page.goto(html_path.as_uri())
+            page.emulate_media(media="print")
+            page.pdf(
+                path=str(pdf_path),
+                format="A4",
+                print_background=True,
+                display_header_footer=True,
+                header_template="<div></div>",
+                footer_template=FOOTER_HTML.format(label=footer_label),
+                margin={"top": "0.8cm", "right": "1.4cm", "bottom": "1.8cm", "left": "1.4cm"},
+            )
+        finally:
+            browser.close()
 
 
 def build_one(lang: str, html_only: bool = False):
@@ -138,7 +142,7 @@ def main():
 
 
 def _serve_and_watch(langs):
-    import http.server, socketserver, threading, functools
+    import http.server, socketserver, functools
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
 
@@ -149,7 +153,7 @@ def _serve_and_watch(langs):
 
     class H(FileSystemEventHandler):
         def on_any_event(self, e):
-            if str(e.src_path).endswith((".yaml", ".j2", ".css", ".py")):
+            if str(e.src_path).endswith((".yaml", ".j2", ".css")):
                 try:
                     rebuild()
                 except Exception as ex:
@@ -161,6 +165,7 @@ def _serve_and_watch(langs):
     obs.start()
 
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
+    socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.TCPServer(("127.0.0.1", 8000), handler)
     url = f"http://127.0.0.1:8000/build/resume.{langs[0]}.html"
     print(f"serving {url}  (Ctrl-C to stop)")

@@ -14,7 +14,7 @@
 - 改内容：只编辑 `data/resume.yaml`。
 - 出 PDF：`.venv/bin/python build.py --lang all` → `build/resume.zh.pdf`、`build/resume.en.pdf`
 - 只出某语言：`--lang zh` 或 `--lang en`
-- 调排版预览：`.venv/bin/python build.py --html-only && .venv/bin/python build.py --watch`，浏览器开 http://127.0.0.1:8000/build/resume.zh.html ，改 YAML 自动刷新（所见即 PDF）。
+- 调排版预览：`.venv/bin/python build.py --html-only && .venv/bin/python build.py --watch`，浏览器开 http://127.0.0.1:8000/build/resume.zh.html ，改 YAML 后重建 HTML，手动刷新浏览器即可（所见即 PDF）。
 - 头像：放 `assets/photo.jpg`（不放则不显示）。
 
 ## 结构

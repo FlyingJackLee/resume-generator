@@ -27,3 +27,8 @@ def test_section_types_are_known():
     data = load_data()
     types = {s["type"] for s in data["sections"]}
     assert types <= {"paragraph", "skills", "education", "entries"}
+
+
+def test_localize_single_language_fallback():
+    assert localize({"zh": "只中文"}, "en") == "只中文"
+    assert localize({"en": "en only"}, "zh") == "en only"

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import build as buildmod  # noqa: E402
 from build import load_data, render_html  # noqa: E402
 
 
@@ -42,3 +43,17 @@ def test_skills_items_render_not_method_repr():
     assert "Mybatis" in html          # real skills text present
     assert "Spring Cloud" in html
     assert "built-in method" not in html   # dict.items method repr must NOT leak
+
+
+def test_photo_src_is_build_relative_when_present(tmp_path):
+    photo = buildmod.ROOT / "assets" / "photo.jpg"
+    created = False
+    if not photo.exists():
+        photo.write_bytes(b"\xff\xd8\xff\xd9")  # minimal JPEG-ish bytes
+        created = True
+    try:
+        html = render_html(load_data(), "zh")
+        assert 'src="../assets/photo.jpg"' in html
+    finally:
+        if created:
+            photo.unlink()

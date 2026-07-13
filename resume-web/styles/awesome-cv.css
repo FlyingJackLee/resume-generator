@@ -43,7 +43,7 @@ html, body {
   display: flex; align-items: center; gap: 10px;
   font-size: 16pt; font-weight: 700; color: var(--text); margin-bottom: 8px;
 }
-.section-title .hl::first-letter { color: var(--awesome); }
+.section-title .hl { color: var(--awesome); }
 .section-title::after {
   content: ""; flex: 1 1 auto; height: 1px; background: var(--text); opacity: .85;
 }

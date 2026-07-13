@@ -37,13 +37,23 @@ def icon(name):
 
 
 def make_section_title(data):
-    """返回一个渲染段标题的函数：整段文字包在单个 <span class="hl"> 内，
-    保持文本节点连续（不拆分成两段），红色高亮通过 CSS ::first-letter 实现，
-    避免在 DOM 中插入标签打断标题原文的连续子串（会破坏内容测试）。
+    """返回一个渲染段标题的函数：标题的前 N 个字符包在 <span class="hl"> 内
+    并通过 CSS 着色为红色，实现 Awesome-CV 标志性的双色段标题。N 的取值
+    取决于首字符是否为 CJK 表意文字：中文用 section_highlight_cjk（默认 1），
+    英文/其他用 section_highlight_latin（默认 3）。
     """
 
     def _title(text):
-        return Markup(f'<span class="hl">{text}</span>')
+        text = str(text)
+        if not text:
+            return Markup("")
+        first = text[0]
+        if "一" <= first <= "鿿":
+            n = data.get("section_highlight_cjk", 1)
+        else:
+            n = data.get("section_highlight_latin", 3)
+        head, tail = text[:n], text[n:]
+        return Markup('<span class="hl">{}</span>{}').format(head, tail)
 
     return _title
 

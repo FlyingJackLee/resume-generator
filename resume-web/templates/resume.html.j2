@@ -22,7 +22,6 @@
     <div class="position">{{ meta.position | L }}</div>
     <div class="contacts">
       {% set c = meta.contacts %}
-      {% set items = [] %}
       <span class="item">{{ icon('phone') }}{{ c.mobile }}</span><span class="sep">|</span>
       <span class="item">{{ icon('email') }}{{ c.email }}</span><span class="sep">|</span>
       <span class="item">{{ icon('home') }}{{ c.homepage }}</span><span class="sep">|</span>

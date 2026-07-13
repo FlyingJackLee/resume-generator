@@ -1,3 +1,8 @@
+@font-face { font-family: "Roboto"; font-weight: 400; font-style: normal; src: url("../assets/fonts/Roboto-Regular.ttf"); }
+@font-face { font-family: "Roboto"; font-weight: 700; font-style: normal; src: url("../assets/fonts/Roboto-Bold.ttf"); }
+@font-face { font-family: "Roboto"; font-weight: 300; font-style: normal; src: url("../assets/fonts/Roboto-Light.ttf"); }
+@font-face { font-family: "Roboto"; font-weight: 400; font-style: italic; src: url("../assets/fonts/Roboto-Italic.ttf"); }
+
 :root {
   --awesome: #DC3522;
   --text: #333333;
@@ -83,3 +88,17 @@ html, body {
 
 /* 页脚（screen 显示；print 用 Playwright footer 生成页码） */
 .footer { display: none; }
+
+@media screen {
+  body { background: #ececec; }
+  .page {
+    width: 21cm; min-height: 29.7cm; margin: 20px auto; background: #fff;
+    box-shadow: 0 2px 16px rgba(0,0,0,.18); padding: 0.8cm 1.4cm 1.8cm;
+  }
+  .lang-toggle { position: fixed; top: 16px; right: 16px; }
+  .lang-toggle a {
+    background: var(--awesome); color: #fff; text-decoration: none;
+    padding: 6px 12px; border-radius: 4px; font-size: 12px;
+  }
+}
+@media print { .lang-toggle { display: none; } }

@@ -126,11 +126,49 @@ def main():
     ap = argparse.ArgumentParser(description="Build resume PDF/HTML from resume.yaml")
     ap.add_argument("--lang", choices=["zh", "en", "all"], default="all")
     ap.add_argument("--html-only", action="store_true")
+    ap.add_argument("--watch", action="store_true", help="起本地服务并监听改动重建 HTML")
     args = ap.parse_args()
     langs = ["zh", "en"] if args.lang == "all" else [args.lang]
     for lang in langs:
         html_path, pdf_path = build_one(lang, html_only=args.html_only)
         print(f"[{lang}] {html_path.name}" + ("" if args.html_only else f" + {pdf_path.name}"))
+
+    if args.watch:
+        _serve_and_watch(langs)
+
+
+def _serve_and_watch(langs):
+    import http.server, socketserver, threading, functools
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
+
+    def rebuild():
+        for lang in langs:
+            build_one(lang, html_only=True)
+        print("rebuilt:", ", ".join(langs))
+
+    class H(FileSystemEventHandler):
+        def on_any_event(self, e):
+            if str(e.src_path).endswith((".yaml", ".j2", ".css", ".py")):
+                try:
+                    rebuild()
+                except Exception as ex:
+                    print("build error:", ex)
+
+    obs = Observer()
+    for d in ("data", "templates", "styles"):
+        obs.schedule(H(), str(ROOT / d), recursive=True)
+    obs.start()
+
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
+    httpd = socketserver.TCPServer(("127.0.0.1", 8000), handler)
+    url = f"http://127.0.0.1:8000/build/resume.{langs[0]}.html"
+    print(f"serving {url}  (Ctrl-C to stop)")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        obs.stop()
+        obs.join()
 
 
 if __name__ == "__main__":

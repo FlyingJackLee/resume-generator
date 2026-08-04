@@ -7,8 +7,18 @@
     .venv/bin/pip install -r requirements.txt
     .venv/bin/playwright install chromium
 
-中文字体需系统装 Noto Serif CJK（本机已装）。若缺失：
-    sudo apt install fonts-noto-cjk
+中文优先使用 MiSans，英文使用项目内置的 Roboto。MiSans 字体文件受小米官方
+许可约束，不能随仓库再次分发，因此 `assets/fonts-local/` 已加入 Git 忽略。
+
+首次使用时，请从 [MiSans 官方页面](https://hyperos.mi.com/font/zh/download/)
+下载字体包，将以下三个文件放到 `assets/fonts-local/`：
+
+    MiSans-Regular.woff2
+    MiSans-Medium.woff2
+    MiSans-Semibold.woff2
+
+使用 MiSans 即表示接受其官方许可协议。若本地未提供 MiSans，样式会依次回退到
+系统 MiSans、Noto Sans CJK SC、思源黑体、微软雅黑或苹方。
 
 ## 日常使用
 - 改内容：只编辑 `data/resume.yaml`。

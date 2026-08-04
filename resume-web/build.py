@@ -99,6 +99,7 @@ def export_pdf(html_path: Path, pdf_path: Path, footer_label: str):
         try:
             page = browser.new_page()
             page.goto(html_path.as_uri())
+            page.evaluate("() => document.fonts.ready")
             page.emulate_media(media="print")
             page.pdf(
                 path=str(pdf_path),

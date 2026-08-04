@@ -3,3 +3,6 @@ build/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# MiSans 官方许可允许使用，但不允许再次分发字体文件。
+assets/fonts-local/

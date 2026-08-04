@@ -61,6 +61,7 @@ sections:
         date: {zh: "2012年9月 - 2016年6月", en: "September 2012 – June 2016"}
 
   - type: entries
+    org_first: true
     title: {zh: "工作经历", en: "Work"}
     entries:
       - title: {zh: "技术合伙人", en: "Technical Lead & Partner"}
@@ -87,6 +88,7 @@ sections:
           - {zh: "独立负责企业官方网站前端全栈开发，兼顾页面交互逻辑、整体功能实现与视觉界面定制设计。", en: "Independently delivered full-cycle frontend development for the corporate official website. Completed visual layout, interactive features and cross-device adaptation."}
 
   - type: entries
+    page_break_before: true
     title: {zh: "项目经历", en: "Projects"}
     entries:
       - title: {zh: "智能仓储收银管理系统", en: "Smart Inventory and Cashier Management Platform"}

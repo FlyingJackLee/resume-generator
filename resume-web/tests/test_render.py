@@ -31,6 +31,13 @@ def test_render_en_contains_key_content():
     assert '<span class="hl">Int</span>' in html  # 英文标题高亮边界（3 字）
 
 
+def test_work_entries_render_company_before_role():
+    zh = render_html(load_data(), "zh")
+    assert zh.index("麒霖通信有限公司") < zh.index("技术合伙人")
+    en = render_html(load_data(), "en")
+    assert en.index("Qilin Communications Co., Ltd.") < en.index("Technical Lead &amp; Partner")
+
+
 def test_render_includes_inline_css_and_icons():
     html = render_html(load_data(), "zh")
     assert "--awesome: #DC3522" in html

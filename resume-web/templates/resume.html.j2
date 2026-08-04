@@ -32,7 +32,7 @@
   </header>
 
   {% for s in sections %}
-  <section class="section {{ 'edu' if s.type == 'education' else '' }}">
+  <section class="section {{ 'edu' if s.type == 'education' else '' }}{{ ' page-break-before' if s.get('page_break_before') else '' }}">
     <div class="section-title">{{ section_title(s.title | L) }}</div>
 
     {% if s.type == 'paragraph' %}
@@ -69,8 +69,13 @@
       <div class="entry">
         <div class="entry-head">
           <div class="left">
+            {% if s.get('org_first') %}
+            <span class="entry-title entry-company">{{ e.org | L }}</span>
+            <span class="entry-org entry-role">{{ e.title | L }}</span>
+            {% else %}
             <span class="entry-title">{{ e.title | L }}</span>
             <span class="entry-org">{{ e.org | L }}</span>
+            {% endif %}
             {% if e.link %}<span class="entry-link"><a href="{{ e.link.url }}">{{ e.link.label }}</a></span>{% endif %}
           </div>
           <div class="right">

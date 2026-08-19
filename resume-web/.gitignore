@@ -1,8 +1,31 @@
-.venv/
-build/
+# Python bytecode and caches
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test and coverage reports
+.coverage
+.coverage.*
+htmlcov/
+
+# Generated resume output
+/build/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
 
 # MiSans 官方许可允许使用，但不允许再次分发字体文件。
-assets/fonts-local/
+/assets/fonts-local/

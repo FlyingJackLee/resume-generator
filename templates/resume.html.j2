@@ -72,20 +72,32 @@
             {% if s.get('org_first') %}
             <span class="entry-title entry-company">{{ e.org | L }}</span>
             <span class="entry-org entry-role">{{ e.title | L }}</span>
+            {% if e.link %}<span class="entry-link"><a href="{{ e.link.url }}">{{ e.link.label }}</a></span>{% endif %}
             {% else %}
             <span class="entry-title">{{ e.title | L }}</span>
-            <span class="entry-org">{{ e.org | L }}</span>
+            <span class="entry-meta">
+              <span class="entry-org">{{ e.org | L }}</span>
+              {% if e.link %}<span class="entry-link"><a href="{{ e.link.url }}">{{ e.link.label }}</a></span>{% endif %}
+            </span>
             {% endif %}
-            {% if e.link %}<span class="entry-link"><a href="{{ e.link.url }}">{{ e.link.label }}</a></span>{% endif %}
           </div>
           <div class="right">
             <div class="entry-location">{{ e.location | L }}</div>
             {% if (e.date | L) %}<div class="entry-date">{{ e.date | L }}</div>{% endif %}
           </div>
         </div>
-        {% if e.get('items') %}
+        {% if e.get('summary') %}
+        <div class="entry-summary">
+          <span class="entry-subtitle">{{ s.summary_label | L }}</span>{{ ' ' if lang == 'en' else '' }}{{ e.summary | L }}
+        </div>
+        {% endif %}
+        {% set detail_items = e.get('responsibilities', e.get('items')) %}
+        {% if detail_items %}
+        {% if e.get('responsibilities') %}
+        <div class="entry-subtitle responsibilities-title">{{ s.responsibility_label | L }}</div>
+        {% endif %}
         <ul class="entry-items">
-          {% for it in e['items'] %}<li>{{ it | L }}</li>{% endfor %}
+          {% for it in detail_items %}<li>{{ it | L }}</li>{% endfor %}
         </ul>
         {% endif %}
       </div>

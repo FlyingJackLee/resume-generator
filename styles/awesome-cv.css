@@ -292,8 +292,46 @@ html:lang(zh) .entry-role {
   font-size: 7.4pt;
   text-decoration: none;
 }
+.entry-meta {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0 7px;
+  white-space: nowrap;
+}
+.entry-meta .entry-link {
+  min-width: 0;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-meta .entry-link::before {
+  margin-right: 7px;
+  color: var(--light);
+  content: "·";
+}
+.entry-summary {
+  margin-top: 5px;
+  color: var(--text);
+  line-height: 1.48;
+}
+.entry-subtitle {
+  color: var(--darktext);
+  font-weight: 700;
+}
+html:lang(zh) .entry-subtitle { font-weight: 600; }
+.responsibilities-title { margin-top: 4px; }
+.section.page-break-before .entry { margin-bottom: 0; }
+.section.page-break-before .entry + .entry {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #E2E4E7;
+}
+.section.page-break-before .entry-summary { line-height: 1.42; }
+.section.page-break-before .entry-items li { line-height: 1.38; }
+.section.page-break-before ~ .more { margin-top: 16px; }
 .entry-items {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   padding-left: 17px;
 }
 .entry-items li {

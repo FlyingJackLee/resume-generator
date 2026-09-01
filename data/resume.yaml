@@ -1,0 +1,163 @@
+meta:
+  name:
+    zh: "李祖民"
+    en: "Zumin Li"
+  name_split_zh: 1        # 段/名着色时中文取前几个字
+  position:
+    zh: "软件工程师 · 全栈开发"
+    en: "Software Engineer · Full Stack Developer"
+  color: "#DC3522"
+  contacts:
+    mobile: "(+86) 13675823946"
+    email: "zumin.li.work@gmail.com"
+    homepage: "resume.flyingjack.top"
+    github: "FlyingJackLee"
+    wechat: "13675823946"
+  photo: "assets/photo.jpg"
+  footer_label:
+    zh: "李祖民 · Résumé"
+    en: "Zumin Li · Résumé"
+  footer_more:
+    text:
+      zh: "更多信息，烦请访问我的个人网站："
+      en: "See my website for more: "
+    url: "https://resume.flyingjack.top/"
+
+# 段标题默认着色字数：拉丁前 3 个字符 / 中文前 1 个字（可按 section 用 highlight 覆盖）
+section_highlight_latin: 3
+section_highlight_cjk: 1
+
+sections:
+  - type: paragraph
+    title: {zh: "个人介绍", en: "Introduction"}
+    body:
+      zh: "具备五年以上软件开发经验，当前专注于 AI Agent 智能体应用开发，熟悉 ReAct、Plan-and-Execute、Reflection 等智能体范式，以及任务规划、状态管理、工具调用、记忆与上下文管理等核心机制；能够使用 LangChain、LangGraph、LangChain4j、MCP 与 RAG 等技术构建智能体及工作流。拥有扎实的 Java 后端、分布式微服务与云原生系统研发能力，同时具备全栈开发、系统架构设计、性能优化及容器化交付经验，能够独立完成从方案设计、功能研发到部署运维的完整研发流程。"
+      en: "Brings 5+ years of software development experience and is currently focused on AI Agent application development, with practical knowledge of agentic patterns including ReAct, Plan-and-Execute and Reflection, as well as core mechanisms such as task planning, state management, tool use, memory and context management. Able to build agents and workflows using LangChain, LangGraph, LangChain4j, MCP and RAG. Possesses a strong foundation in Java backend engineering, distributed microservices and cloud-native systems, alongside full-stack development, architecture design, performance optimization and containerized delivery. Capable of independently delivering the complete engineering lifecycle from solution design and implementation to deployment and operations."
+
+  - type: skills
+    title: {zh: "技术栈", en: "Skills"}
+    rows:
+      - label: {zh: "AI 智能体开发", en: "AI Agent Development"}
+        items: {zh: "LangGraph, LangChain, LangChain4j, ReAct, Plan-and-Execute, Reflection, Human-in-the-loop", en: "LangGraph, LangChain, LangChain4j, ReAct, Plan-and-Execute, Reflection, Human-in-the-loop"}
+      - label: {zh: "LLM 应用工程", en: "LLM Engineering"}
+        items: {zh: "MCP, RAG, Tool Calling, LLM Gateway, Prompt Engineering, Embedding, pgvector", en: "MCP, RAG, Tool Calling, LLM Gateway, Prompt Engineering, Embedding, pgvector"}
+      - label: {zh: "后端技术", en: "Backend"}
+        items: {zh: "Java, Python, Spring Boot, Spring Cloud Alibaba, FastAPI, Kafka, REST API", en: "Java, Python, Spring Boot, Spring Cloud Alibaba, FastAPI, Kafka, REST API"}
+      - label: {zh: "云原生与交付", en: "Cloud Native & Delivery"}
+        items: {zh: "Kubernetes, Docker, Istio, Jenkins, GitOps, Prometheus", en: "Kubernetes, Docker, Istio, Jenkins, GitOps, Prometheus"}
+      - label: {zh: "数据与客户端", en: "Data & Client"}
+        items: {zh: "PostgreSQL, MySQL, Redis, Elasticsearch, React, Angular, Flutter", en: "PostgreSQL, MySQL, Redis, Elasticsearch, React, Angular, Flutter"}
+
+  - type: education
+    title: {zh: "教育经历", en: "Education"}
+    entries:
+      - degree: {zh: "软件工程 硕士 - Distinction 一等学位", en: "MSc in Software Engineering - Distinction"}
+        org: {zh: "英国格拉斯哥大学", en: "University of Glasgow"}
+        location: {zh: "格拉斯哥, 英国", en: "Glasgow, UK"}
+        date: {zh: "2020年9月 - 2022年4月", en: "September 2020 – April 2022"}
+      - degree: {zh: "通信工程 工学学士 - 优秀毕业生", en: "BEng in Communication Engineering - Outstanding Graduate"}
+        org: {zh: "杭州电子科技大学", en: "Hangzhou Dianzi University"}
+        location: {zh: "杭州, 中国", en: "Hangzhou, China"}
+        date: {zh: "2012年9月 - 2016年6月", en: "September 2012 – June 2016"}
+
+  - type: entries
+    org_first: true
+    title: {zh: "工作经历", en: "Work"}
+    entries:
+      - title: {zh: "FDE工程师", en: "Forward Deployed Engineer"} 
+        org: {zh: "中国电信股份有限公司", en: "China Telecom Corporation Limited"} 
+        location: {zh: "重庆, 中国", en: "Chongqing, China"} 
+        date: {zh: "2026年3月 - 至今", en: "March 2026 – Present"} 
+        items: 
+          - {zh: "深入政企客户一线，对接 AI 与 MaaS 需求，将模糊业务诉求快速拆解为可验证场景，并在 1-2 周内完成端到端 PoC 与演示原型。通过快速迭代与现场反馈，推动客户从概念验证进入实际落地。", en: "Embedded with enterprise customers to translate ambiguous AI and MaaS requirements into concrete, testable use cases, delivering end-to-end PoCs and demos within 1–2 weeks. Iterated rapidly on customer feedback to move initiatives from exploration to implementation."} 
+          - {zh: "将验证通过的 PoC 工程化为面向真实业务流程的 AI Agent，负责业务流程抽象、Agent 架构设计与核心功能开发。基于 LangGraph、FastAPI、RAG、MCP 等技术实现任务编排、工具调用、知识检索与多智能体协作。", en: "Productized validated PoCs into AI agents embedded in real business workflows, owning workflow abstraction, agent architecture and core implementation. Built task orchestration, tool calling, retrieval and multi-agent collaboration using LangGraph, FastAPI, RAG and MCP."} 
+          - {zh: "负责 AI 应用从原型到生产的完整交付，包括 MaaS 接入、企业系统集成、可观测性、容器化与 Kubernetes 部署。结合客户真实使用反馈持续优化 Prompt、RAG 与 Agent 策略，解决现场问题并保障业务稳定运行。", en: "Owned end-to-end delivery from prototype to production, including MaaS integration, enterprise system integration, observability, containerization and Kubernetes deployment. Continuously optimized prompts, retrieval and agent strategies based on real-world usage and on-site feedback."} 
+      - title: {zh: "技术合伙人", en: "Technical Lead & Partner"}
+        org: {zh: "麒霖通信有限公司", en: "Qilin Communications Co., Ltd."}
+        location: {zh: "贵阳, 中国", en: "Guiyang, China"}
+        date: {zh: "2023年11月 - 2026年2月", en: "November 2023 – February 2026"}
+        items:
+          - {zh: "负责智能仓储收银一体化管理系统前后端全栈研发，涵盖业务模块建模、接口设计、数据库表结构设计、业务逻辑开发及联调对接，打通仓储库存、订单结算、收银核销全业务链路。", en: "Led full-stack development of an intelligent integrated warehouse and cashier management platform, focusing on Java backend and distributed microservice architecture."}
+          - {zh: "负责系统整体架构梳理、性能调优与架构迭代优化，承担服务容器化部署、环境配置、版本发布及日常运维保障工作，提升系统稳定性、并发承载能力与可维护性。", en: "Optimized microservice architecture and system performance, and delivered iterative upgrades with cloud-native technologies. Managed Kubernetes container orchestration, automated deployment, environment configuration and version release, significantly enhancing system stability, high-concurrency performance, scalability and maintainability."}
+      - title: {zh: "高级软件工程师", en: "Senior Software Engineer"}
+        org: {zh: "华为云计算技术有限公司", en: "Huawei Cloud Computing Technologies Co., Ltd"}
+        location: {zh: "成都, 中国", en: "Chengdu, China"}
+        date: {zh: "2022年7月 - 2023年8月", en: "July 2022 – August 2023"}
+        items:
+          - {zh: "负责 PaaS 云测产品商用环境后端需求迭代与功能开发，保障服务高可用、高性能架构落地，支撑商业化稳定交付。", en: "Developed and iterated backend features for commercial PaaS cloud testing products, ensuring high availability and high-performance architecture to support stable commercial delivery."}
+          - {zh: "主导并独立完成部门自研测试工具全流程设计与开发，实现流水线测试数据自动注入、接口 Mock 模拟等核心能力，提升团队测试效能。", en: "Independently led the full-cycle design and development of an in-house testing framework, implementing automated test data injection and API Mock simulation to significantly improve team testing efficiency."}
+          - {zh: "承担混合云场景下客户技术对接、现场支撑及项目全周期风险识别与管控，保障业务平稳落地运行。", en: "Provided on-site technical support and end-to-end project risk management for hybrid cloud customers, guaranteeing smooth project deployment and operation."}
+      - title: {zh: "软件工程师", en: "Software Engineer"}
+        org: {zh: "浙江科普教育广播制作有限公司", en: "Zhejiang Science Education Broadcasting Production Co., Ltd."}
+        location: {zh: "杭州, 中国", en: "Hangzhou, China"}
+        date: {zh: "2017年8月 - 2019年8月", en: "August 2017 – August 2019"}
+        items:
+          - {zh: "负责企业 OA 审批系统及官方网站的全栈研发，完成审批流程建模、后端业务接口与前端交互开发，并实现跨终端适配，提升流程配置灵活性与系统可维护性。", en: "Delivered full-stack development of the enterprise OA approval system and corporate website, covering workflow modelling, backend APIs, frontend interactions and cross-device adaptation to improve configurability and maintainability."}
+
+  - type: entries
+    page_break_before: true
+    title: {zh: "项目经历", en: "Projects"}
+    summary_label: {zh: "项目简介：", en: "Overview:"}
+    responsibility_label: {zh: "个人职责：", en: "Responsibilities:"}
+    entries:
+      - title: {zh: "Expert Engine 行业专家智能研判引擎", en: "Expert Engine – Industry Intelligence Reasoning Engine"}
+        org: {zh: "系统架构设计 / 核心研发", en: "System Architecture & Core Development"}
+        location: {zh: "Release @ 2026年8月", en: "Release @ August 2026"}
+        date: {zh: "", en: ""}
+        link: null
+        summary: {zh: "面向商务机会研判的 AI 专家引擎，基于 FastAPI + PostgreSQL + pgvector + OpenSearch，构建了包含 Expert Profile、Knowledge Engine、Organization Engine等完整推理基础设施，支持从政策、新闻等事件中自动识别商机、推荐目标单位与部门、匹配公司能力并给出可解释的评分与行动建议。", en: "An AI expert engine for business opportunity intelligence, built with FastAPI, PostgreSQL, pgvector and OpenSearch. It comprises Expert Profile, Knowledge Engine, Organization Engine, Need Engine, Capability Engine, Evidence Engine, Scoring Engine, Reviewer and a knowledge learning loop. The engine automatically identifies opportunities from policies and news, recommends target organizations and departments, matches company capabilities, and provides explainable scores and actionable recommendations."}
+        responsibilities:
+          - {zh: "负责 Expert Engine 整体架构设计与核心模块研发，设计 Expert Profile 框架、混合检索流程（向量 + BM25 + SQL）及证据驱动的推理管线，确保结论可解释、可追溯。", en: "Designed the overall architecture and core modules, including the Expert Profile framework, hybrid retrieval pipeline (vector + BM25 + SQL) and evidence-driven reasoning workflow to ensure explainability and traceability."}
+          - {zh: "开发 Organization Engine、 Evidence Engine、Scoring Engine、 Need Engine，实现基于职责匹配、主题映射和历史案例的单位/部门智能推荐，统一证据管理、可复算评分模型及独立评审模块，支持证据缺失自动触发补充检索，并实现结构化输出与错误处理。", en: "Developed the Organization Engine and Need Engine, implementing intelligent recommendation of organizations and departments based on responsibility matching, topic mapping and historical cases, with department roles (lead/support) and need maturity classification."}
+          # - {zh: "构建 Evidence Engine、Scoring Engine 与 Reviewer，统一证据管理、可复算评分模型及独立评审模块，支持证据缺失自动触发补充检索，并实现结构化输出与错误处理。", en: "Built the Evidence Engine, Scoring Engine and Reviewer for unified evidence management, reproducible scoring, and independent review with automatic supplementary retrieval on missing evidence, along with structured output and error handling."}
+          # - {zh: "设计并实现 Knowledge Learning 闭环，支持商务反馈 → 知识候选生成 → 人工审核 → 专家知识入库的全流程，并配套评测数据集与 Benchmark 指标（Top3 Recall、幻觉率等）。", en: "Designed and implemented the Knowledge Learning loop, supporting the full workflow from business feedback to knowledge candidate generation, human review and expert knowledge ingestion, with evaluation datasets and benchmark metrics (Top3 Recall, hallucination rate, etc.)."}
+      - title: {zh: "AI 投标助手", en: "AI Bid Assistant"}
+        org: {zh: "AI Agent / 全栈开发", en: "AI Agent & Full-stack Development"}
+        location: {zh: "Release @ 2026年7月", en: "Release @ July 2026"}
+        date: {zh: "", en: ""}
+        link: {url: "https://github.com/FlyingJackLee/bid-agent", label: "Github: github.com/FlyingJackLee/bid-agent"}
+        summary: {zh: "基于 LangGraph 的招投标智能体平台，覆盖招标解析、合规审查、人工复核、批量评审与横向对比，集成 OCR、法规知识库 RAG 和自动报告生成能力。", en: "A LangGraph-based bidding assistant covering tender parsing, compliance review, human verification, batch evaluation and bidder comparison, with integrated OCR, regulation-focused RAG and automated reporting."}
+        responsibilities:
+          - {zh: "负责智能体架构与核心工作流设计，使用 LangGraph StateGraph 编排文件解析、要点提取、合规核查和报告生成，并通过 Human-in-the-loop 与 Checkpointer 实现人工复核、状态持久化及断点恢复。", en: "Designed stateful LangGraph workflows for document parsing, requirement extraction, compliance checking and report generation, with Human-in-the-loop review and checkpoint-based recovery."}
+          - {zh: "构建统一工具调用与安全网关，整合文档解析、OCR、敏感信息脱敏和 PDF 生成，并从代码层阻止未脱敏内容进入 LLM 与向量模型。", en: "Built a unified tool and security layer for document processing, OCR, data sanitization and PDF generation, preventing unsanitized content from reaching LLM and embedding services."}
+          - {zh: "基于 PostgreSQL、pgvector 与本地 Embedding 搭建法规 RAG，实现条款检索和引用回填；使用 FastAPI、React 与 TypeScript 完成平台化，支持批量并发评审、人工决策及进度追踪。", en: "Developed regulation-focused RAG with PostgreSQL, pgvector and local embeddings, and productized the agent with FastAPI, React and TypeScript for concurrent batch review, human decisions and progress tracking."}
+      - title: {zh: "企业级 LLM 数据脱敏网关", en: "Enterprise LLM Data Privacy Gateway"}
+        org: {zh: "系统架构设计 / 核心研发", en: "System Architecture & Core Development"}
+        location: {zh: "Release @ 2026年6月", en: "Release @ June 2026"}
+        date: {zh: "", en: ""}
+        link: null
+        summary: {zh: "面向企业 AI Agent 与 MaaS 调用场景的 LLM 安全接入平台，采用“本地安全处理 + 云端推理”架构，在企业边界内完成敏感数据识别、Token 化脱敏与结果恢复，实现云端大模型的安全调用。", en: "An LLM security gateway for enterprise AI Agents and MaaS services, using local security processing and cloud inference to detect, tokenize and restore sensitive data within the enterprise boundary."}
+        responsibilities:
+          - {zh: "负责混合架构与 LLM Gateway 核心链路设计，统一接入 AI 应用、安全策略、企业私有模型及云端 MaaS 服务。", en: "Designed the hybrid architecture and LLM Gateway for unified access to AI applications, security policies, private models and cloud MaaS services."}
+          - {zh: "融合规则引擎、实体识别模型与本地大语言模型，实现复杂业务数据的语义识别、动态脱敏及安全校验。", en: "Combined rule engines, named entity recognition and local LLMs for semantic detection, dynamic sanitization and security validation."}
+          - {zh: "设计 Token Vault 并完成核心服务研发，实现敏感信息替换、映射管理、调用代理、结果恢复与访问控制。", en: "Designed the Token Vault and core services for data replacement, mapping, request proxying, response restoration and access control."}
+      - title: {zh: "智能仓储收银管理系统", en: "Smart Inventory and Cashier Management Platform"}
+        org: {zh: "全栈开发", en: "Full stack development"}
+        location: {zh: "Release @ 2024年11月29日", en: "Release @ November 29, 2024"}
+        date: {zh: "", en: ""}
+        link: {url: "https://github.com/flyingjack-cloud", label: "Github: https://github.com/flyingjack-cloud"}
+        summary: {zh: "面向仓储零售场景的一体化管理平台，覆盖商品库存、订单结算、收银核销及移动作业。系统由单体应用逐步演进为基于 Spring Cloud Alibaba、Kubernetes 与 Istio 的云原生微服务架构，并接入 AI Agent 实现场景化业务调度。", en: "An integrated platform for warehouse retail operations, covering inventory, order settlement, cashier verification and mobile workflows. The system evolved from a monolith into a cloud-native microservice architecture based on Spring Cloud Alibaba, Kubernetes and Istio, with AI Agent capabilities for contextual business orchestration."}
+        responsibilities:
+          - {zh: "负责前后端全栈研发及业务模块、接口与数据库设计，完成 Web 管理端和 Flutter 移动作业端，并基于 Langchain4j 接入业务智能体。", en: "Delivered full-stack development across domain, API and database design, built the Angular and Flutter clients, and integrated business agents with Langchain4j."}
+          - {zh: "主导三阶段架构演进，引入分布式缓存与 Istio 服务网格，实现路由调度、流量管控、故障熔断以及金丝雀和 A/B 灰度发布。", en: "Led three phases of architectural evolution, introducing distributed caching and the Istio service mesh for routing, traffic control, circuit breaking, canary releases and A/B testing."}
+          - {zh: "搭建 Jenkins + GitOps CI/CD 流水线，整合代码检查、镜像构建、多环境部署及版本回滚，提升交付效率并降低部署误差。", en: "Built a Jenkins and GitOps CI/CD pipeline integrating code checks, image builds, multi-environment deployment and version rollback."}
+      - title: {zh: "华为云 PaaS CodeArts DevOps 软件生产线", en: "CodeArts DevOps Software Pipeline Tools"}
+        org: {zh: "后端开发", en: "Backend development"}
+        location: {zh: "Release @ 2023年8月29日", en: "Release @ August 29, 2023"}
+        date: {zh: "", en: ""}
+        link: {url: "https://www.huaweicloud.com/product/cpts.html", label: "Project site: huaweicloud.com/product/cpts.html"}
+        summary: {zh: "华为云 CodeArts DevOps 软件生产线中的 PaaS 云测试产品，为商业及混合云客户提供测试执行、数据管理和服务支撑能力，强调高可用、高性能与复杂依赖环境下的稳定交付。", en: "A PaaS cloud testing product within Huawei Cloud CodeArts DevOps, providing test execution, data management and service support for commercial and hybrid-cloud customers, with an emphasis on high availability, performance and reliable delivery in complex dependency environments."}
+        responsibilities:
+          - {zh: "制定项目测试标准规范，为团队开发测试数据注入工具，实现复杂依赖环境下 Fake 数据的自动多级注入，为团队节约 30% 以上的需求开发时间。", en: "Developed a new test data injection tool, enabling automated multi-level injection of mock data in complex dependency environments, cutting the team's development cycle by over 30%."}
+          - {zh: "负责 PaaS 云测产品商用环境后端需求拆解、架构设计与功能开发，聚焦服务高可用、高性能架构落地，优化接口响应效率与并发承载能力。", en: "Implemented backend feature development based on Java/Python and microservice architecture, designed and maintained standardized REST APIs, and optimized business logic for distributed systems to guarantee high availability and performance."}
+          # - {zh: "承担混合云场景下客户技术对接、现场支撑与问题排查，梳理业务落地全流程风险点，制定针对性管控方案，保障混合云环境下测试业务平稳运行。", en: "Provided API-level technical support and risk management for external customer services."}
+
+      # - title: {zh: "Easyimage 在线图片识别分类系统", en: "Easyimage - an online image recognition and classification system"}
+      #   org: {zh: "全栈开发", en: "Full stack development"}
+      #   location: {zh: "Release @ 2021年10月9日", en: "Release @ October 9, 2021"}
+      #   date: {zh: "", en: ""}
+      #   link: {url: "https://github.com/FlyingJackLee/easyimage-backend", label: "Github: github.com/FlyingJackLee/easyimage_backend"}
+      #   summary: {zh: "面向仓储图片场景的在线识别与分类系统，通过 Java 后端集成 Python 视觉模型，利用 YOLO 实现目标实时检测、类别识别与自动归类。", en: "An online image recognition and classification system for warehouse scenarios, integrating Python computer-vision models with a Java backend and applying YOLO for real-time detection and automated classification."}
+      #   responsibilities:
+      #     - {zh: "负责 Python 模型程序与 Java 后端服务的跨语言互调适配开发，定义标准化接口协议，实现模型能力与后端业务系统的高效协同、数据互通。", en: "Developed integration logic between Python AI modules and Java microservice backend, supporting core visual business capabilities."}
+      #     - {zh: "基于 YOLO 目标检测算法，开发在线实时对象检测与自动分类模块，优化模型推理效率，实现仓储场景下目标精准识别、多类别自动归类。", en: "Applied YOLO computer vision framework to implement object detection and intelligent classification of images."}

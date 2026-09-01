@@ -1,63 +1,38 @@
-# Chinese_Awesome_CV
-Awesome_CV的中文版本，clone本项目到overleaf即可轻松愉快编写自己的简历。
+# Web 简历（HTML/CSS + Python）
 
-# How to use in Overleaf
-overleaf中创建一个空白项目，然后将本仓库文件到导入overleaf这个项目，点击resume.tex进行编译，即可产出自己的简历
+用一份 `data/resume.yaml` 生成中/英文简历 PDF，同一套 HTML 可当网站。
 
-![展示简历](./showcase.png)
+## 首次安装
+    python3 -m venv .venv
+    .venv/bin/pip install -r requirements.txt
+    .venv/bin/playwright install chromium
 
-# 本项目基于Awesome_CV改动了啥
+中文优先使用 MiSans，英文使用项目内置的 Roboto。MiSans 字体文件受小米官方
+许可约束，不能随仓库再次分发，因此 `assets/fonts-local/` 已加入 Git 忽略。
 
-```
-#### awesome-cv.cls ####
+首次使用时，请从 [MiSans 官方页面](https://hyperos.mi.com/font/zh/download/)
+下载字体包，将以下三个文件放到 `assets/fonts-local/`：
 
-1. 修改summary和个人介绍的差距 xx mm
-\newcommand{\acvHeaderAfterQuoteSkip}{-5mm}
+    MiSans-Regular.woff2
+    MiSans-Medium.woff2
+    MiSans-Semibold.woff2
 
-2. 将姓名改小:xx.pt
-\newcommand*{\headerfirstnamestyle}[1]{{\fontsize{16pt}{1em}\headerfontlight\color{graytext} #1}}
-\newcommand*{\headerlastnamestyle}[1]{{\fontsize{16pt}{1em}\headerfont\bfseries\color{text} #1}}
+使用 MiSans 即表示接受其官方许可协议。若本地未提供 MiSans，样式会依次回退到
+系统 MiSans、Noto Sans CJK SC、思源黑体、微软雅黑或苹方。
 
-3. 将图片改小
-\newcommand*{\makecvheader}[1][C]{%
-  \newcommand*{\drawphoto}{%
-    \ifthenelse{\isundefined{\@photo}}{}{%
-      \newlength{\photodim}
-      \ifthenelse{\equal{\@photoshape}{circle}}%
-        {\setlength{\photodim}{1.3cm}}
-        {\setlength{\photodim}{1.8cm}}
-修改两个xx.cm
+## 日常使用
+- 改内容：只编辑 `data/resume.yaml`。
+- 出 PDF：`.venv/bin/python build.py --lang all` → `build/resume.zh.pdf`、`build/resume.en.pdf`
+- 只出某语言：`--lang zh` 或 `--lang en`
+- 调排版预览：`.venv/bin/python build.py --html-only && .venv/bin/python build.py --watch`，浏览器开 http://127.0.0.1:8000/build/resume.zh.html ，改 YAML 后重建 HTML，手动刷新浏览器即可（所见即 PDF）。
+- 头像：放 `assets/photo.jpg`（不放则不显示）。
 
-4. 增加对微信的支持
-定义新指令
-\newcommand*{\wechat}[1]{\def\@wechat{#1}}
+## 结构
+- `data/resume.yaml` 内容（双语）
+- `templates/resume.html.j2` 排版
+- `styles/awesome-cv.css` 外观
+- `build.py` 构建脚本
 
-在headtext中注册微信图标
-% linjh
-      \ifthenelse{\isundefined{\@wechat}}%
-        {}%
-        {%
-          \ifbool{isstart}{\setbool{isstart}{false}}{\acvHeaderSocialSep}%
-          \href{https://github.com/linjh1118/WisdoMentor/blob/main/resources/wechat.jpg}{\faWechat\acvHeaderIconSep\@wechat}%
-        }%
-      % linjh
+## LaTeX 归档
 
-
-5. 定义一个新指令：cventryfour，在education中使用。从而不必强硬加上教育中的内容
-\newcommand*{\cventryfour}[4]{%
-  \vspace{-2.0mm}
-  \setlength\tabcolsep{0pt}
-  \setlength{\extrarowheight}{0pt}
-  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} L{\textwidth - 4.5cm} R{4.5cm}}
-    \ifempty{#2#3}
-      {\entrypositionstyle{#1} & \entrydatestyle{#4} \\}
-      {\entrytitlestyle{#2} & \entrylocationstyle{#3} \\
-      \entrypositionstyle{#1} & \entrydatestyle{#4} \\}
-  \end{tabular*}%
-}
-
-#### resume.tex ####
-1. 首先需要增加对中文的支持，在resume.tex的documentclass后一行加入\usepackage{xeCJK}
-\documentclass[11pt, a4paper]{awesome-cv}
-\usepackage{xeCJK}
-```
+旧版 LaTeX 工程已停止维护，完整文件保存在 `backup/` 中。

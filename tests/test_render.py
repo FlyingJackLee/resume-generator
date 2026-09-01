@@ -38,6 +38,17 @@ def test_work_entries_render_company_before_role():
     assert en.index("Qilin Communications Co., Ltd.") < en.index("Technical Lead &amp; Partner")
 
 
+def test_projects_render_summary_and_responsibilities():
+    zh = render_html(load_data(), "zh")
+    assert 'class="entry-meta"' in zh
+    assert "项目简介" in zh
+    assert "个人职责" in zh
+    assert "面向仓储零售场景的一体化管理平台" in zh
+    en = render_html(load_data(), "en")
+    assert "Overview" in en
+    assert "Responsibilities" in en
+
+
 def test_render_includes_inline_css_and_icons():
     html = render_html(load_data(), "zh")
     assert "--awesome: #DC3522" in html
@@ -47,8 +58,8 @@ def test_render_includes_inline_css_and_icons():
 
 def test_skills_items_render_not_method_repr():
     html = render_html(load_data(), "zh")
-    assert "Mybatis" in html          # real skills text present
-    assert "Spring Cloud" in html
+    assert "LangGraph" in html          # real skills text present
+    assert "Spring Cloud Alibaba" in html
     assert "built-in method" not in html   # dict.items method repr must NOT leak
 
 

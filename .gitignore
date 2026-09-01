@@ -17,7 +17,7 @@ env/
 htmlcov/
 
 # Generated resume output
-/build/
+/web/build/
 
 # Editors and operating systems
 .idea/
@@ -28,4 +28,9 @@ htmlcov/
 Thumbs.db
 
 # MiSans 官方许可允许使用，但不允许再次分发字体文件。
-/assets/fonts-local/
+/web/assets/fonts-local/
+
+# Local secrets
+.env
+.env.*
+!.env.example

@@ -20,6 +20,17 @@ COMMON_TECH_TERMS = {
     "mongodb", "dynamodb", "snowflake", "terraform", "ansible", "grpc",
     "graphql", "aws", "azure", "gcp", "spark", "hadoop", "airflow",
 }
+TECH_TRANSLATION_HINTS = {
+    "agent": ("智能体",),
+    "calling": ("调用",),
+    "cloud": ("云",),
+    "embedding": ("嵌入", "向量"),
+    "gateway": ("网关",),
+    "retrieval": ("检索",),
+    "security": ("安全",),
+    "token": ("token", "令牌"),
+    "workflow": ("工作流",),
+}
 
 
 def _issue(code: str, severity: str, path: str, message: str) -> ValidationIssue:
@@ -57,7 +68,12 @@ def _validate_text(
     new_tech = sorted(
         token
         for token in WORD_PATTERN.findall(current)
-        if token.casefold() in technology_terms and token.casefold() not in evidence_tech
+        if token.casefold() in technology_terms
+        and token.casefold() not in evidence_tech
+        and not any(
+            hint.casefold() in evidence.casefold()
+            for hint in TECH_TRANSLATION_HINTS.get(token.casefold(), ())
+        )
     )
     if new_tech:
         issues.append(_issue("V03", "high", path, f"技术词缺少所选事实支持：{new_tech}"))

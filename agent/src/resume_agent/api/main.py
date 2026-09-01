@@ -120,6 +120,12 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         launch(workflow.analyze, run_id)
         return metadata
 
+    @app.post("/api/v1/resume/runs/{run_id}/retry-validation", status_code=202)
+    async def retry_validation(run_id: str, workflow: ServiceDep):
+        metadata = workflow.retry_validation(run_id)
+        launch(workflow.validate_and_review, run_id)
+        return metadata
+
     @app.post("/api/v1/resume/runs/{run_id}/approve-strategy", status_code=202)
     async def approve_strategy(
         run_id: str, decision: StrategyDecision, workflow: ServiceDep
@@ -228,6 +234,12 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
     async def ui_retry(run_id: str, workflow: ServiceDep):
         workflow.retry_analysis(run_id)
         launch(workflow.analyze, run_id)
+        return RedirectResponse(f"/runs/{run_id}/view", status_code=303)
+
+    @app.post("/ui/runs/{run_id}/retry-validation")
+    async def ui_retry_validation(run_id: str, workflow: ServiceDep):
+        workflow.retry_validation(run_id)
+        launch(workflow.validate_and_review, run_id)
         return RedirectResponse(f"/runs/{run_id}/view", status_code=303)
 
     @app.post("/ui/runs/{run_id}/revise-strategy")

@@ -33,3 +33,23 @@ def test_manual_edit_of_protected_field_fails():
     assert not result.passed
     assert any(issue.code == "V02" for issue in result.issues)
 
+
+def test_bilingual_fact_can_support_english_technology_wording():
+    master = prepare_working_resume(load_master_resume())
+    projects = next(section for section in master["sections"] if section["id"] == "projects")
+    entry = next(item for item in projects["entries"] if item["id"] == "ai_agent_full_stack_development")
+    summary = entry["summary"]
+    support = [summary["supported_by"][0], entry["responsibilities"][1]["supported_by"][0]]
+    patch = ResumePatch(operations=[PatchOperation(
+        op="replace",
+        path="/sections/projects/entries/ai_agent_full_stack_development/summary",
+        supported_by=support,
+        reason="突出工具调用与安全网关",
+        value={
+            "zh": summary["zh"] + "，包括统一工具调用与安全网关。",
+            "en": summary["en"] + " Includes unified tool calling and security gateway.",
+        },
+    )])
+    candidate = apply_patch(master, patch)
+    result = validate_candidate(master, candidate)
+    assert not any(issue.code == "V03" for issue in result.issues), result.model_dump()

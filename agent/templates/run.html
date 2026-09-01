@@ -67,7 +67,8 @@ input[type=text],input[type=number],textarea{box-sizing:border-box;width:100%;pa
 {% endif %}
 {% if run.status == 'COMPLETED' %}<p>已生成：<code>{{ run.target_file }}</code></p>{% endif %}
 {% if error %}<h2>当前错误</h2><div class="card"><strong>{{ error.type }}</strong><p>{{ error.message }}</p><details><summary>技术详情</summary><pre>{{ artifacts.error }}</pre></details></div>{% endif %}
-{% if run.status in ['FAILED','INTERRUPTED'] %}<form method="post" action="/ui/runs/{{ run.run_id }}/retry"><button>从原 JD 重试分析</button></form>{% endif %}
+{% if run.status == 'FAILED' and validation %}<form class="inline" method="post" action="/ui/runs/{{ run.run_id }}/retry-validation"><button>从候选版本重新校验</button></form>{% endif %}
+{% if run.status in ['FAILED','INTERRUPTED'] %}<form class="inline" method="post" action="/ui/runs/{{ run.run_id }}/retry"><button class="secondary">从原 JD 重试分析</button></form>{% endif %}
 {% if artifacts %}<details><summary>技术详情：原始 JSON</summary>
 {% for name, raw in artifacts.items() %}{% if name != 'error' %}<h3>{{ name }}</h3><pre>{{ raw }}</pre>{% endif %}{% endfor %}</details>{% endif %}
 <script>

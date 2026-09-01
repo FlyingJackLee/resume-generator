@@ -177,6 +177,9 @@ class WorkflowService:
         metadata = read_metadata(run_dir)
         if metadata["status"] not in {"FAILED", "INTERRUPTED"}:
             raise ResumeAgentError("只有失败或中断的分析 run 可以重试")
+        error_path = run_dir / "error.json"
+        if error_path.exists():
+            error_path.replace(run_dir / "error.previous.json")
         if (run_dir / "hr_review.json").exists():
             stage, progress = "Rewrite Strategy（断点续跑）", 3
         elif (run_dir / "match_report.json").exists():
@@ -193,6 +196,70 @@ class WorkflowService:
             progress_total=4,
             error=None,
         )
+
+    def retry_validation(self, run_id: str) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        metadata = read_metadata(run_dir)
+        if metadata["status"] != "FAILED" or not (run_dir / "candidate_resume.yaml").exists():
+            raise ResumeAgentError("当前 run 没有可重新校验的候选简历")
+        error_path = run_dir / "error.json"
+        if error_path.exists():
+            error_path.replace(run_dir / "error.previous.json")
+        return update_metadata(
+            run_dir,
+            status="VALIDATING",
+            stage="Fact Validator（从候选版本继续）",
+            error=None,
+            progress_current=2,
+            progress_total=4,
+        )
+
+    def validate_and_review(self, run_id: str) -> None:
+        run_dir = self.resolve_run(run_id)
+        try:
+            master = read_yaml(run_dir, "input_resume.yaml")
+            candidate = read_yaml(run_dir, "candidate_resume.yaml")
+            validation = validate_candidate(master, candidate)
+            write_json(run_dir, "validation.json", validation.model_dump())
+            iteration = read_metadata(run_dir).get("iteration", self.settings.max_iterations)
+            write_json(run_dir, f"validation_{iteration:02d}.json", validation.model_dump())
+            if not validation.passed:
+                write_json(
+                    run_dir,
+                    "error.json",
+                    {"type": "FactValidationError", "message": "事实校验未通过", "issues": validation.model_dump()["issues"]},
+                )
+                update_metadata(run_dir, status="FAILED", stage="事实校验失败")
+                return
+            update_metadata(
+                run_dir,
+                status="REVIEWING",
+                stage="Hiring Manager",
+                progress_current=3,
+                progress_total=4,
+            )
+            state = {
+                "run_id": run_id,
+                "original_resume": master,
+                "candidate_resume": candidate,
+                "job_profile": read_json(run_dir, "job_profile.json"),
+                "iteration": iteration,
+            }
+            update = self.nodes.hiring_manager(state)
+            evaluation = update["hiring_evaluation"]
+            write_json(run_dir, "hiring_review.json", evaluation)
+            write_json(run_dir, f"hiring_review_{iteration:02d}.json", evaluation)
+            update_metadata(
+                run_dir,
+                status="WAITING_FINAL_APPROVAL",
+                stage="Human Gate ②：等待最终确认",
+                hiring_score=evaluation["total_score"],
+                progress_current=4,
+                progress_total=4,
+            )
+        except Exception as exc:
+            logger.exception("validation resume failed run_id=%s", run_id)
+            self._fail(run_dir, exc)
 
     def approve_strategy(
         self, run_id: str, override: RewriteStrategy | None = None
@@ -299,6 +366,16 @@ class WorkflowService:
                     else "事实校验失败"
                 ),
             )
+            if result["status"] == "FAILED":
+                write_json(
+                    run_dir,
+                    "error.json",
+                    {
+                        "type": "FactValidationError",
+                        "message": "事实校验在最大返工次数后仍未通过",
+                        "issues": result["fact_validation"]["issues"],
+                    },
+                )
             logger.info("compile graph finished run_id=%s status=%s", run_id, result["status"])
         except Exception as exc:
             logger.exception("compile graph failed run_id=%s", run_id)

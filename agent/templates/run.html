@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ run.jd_label }} · Resume Compiler</title>
+<style>
+body{font:15px/1.55 system-ui,sans-serif;max-width:1100px;margin:36px auto;padding:0 20px;color:#202124}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f7f8;border:1px solid #ddd;padding:14px;border-radius:6px;max-height:520px;overflow:auto}
+.status,.chip{padding:6px 10px;background:#fff3cd;border-radius:999px;display:inline-block}.chip{margin:3px;background:#e9f2ff}.forbidden{background:#fdeaea}
+button{background:#b52b1d;color:white;border:0;border-radius:6px;padding:10px 18px;cursor:pointer;margin:6px 8px 6px 0}.secondary{background:#586069}
+.card{border:1px solid #d9dce1;border-radius:9px;padding:16px;margin:12px 0;background:#fff}.muted{color:#666}.evidence{background:#f3f8f3;border-left:3px solid #4b9b62;padding:9px;margin:7px 0}
+input[type=text],input[type=number],textarea{box-sizing:border-box;width:100%;padding:9px;border:1px solid #bbb;border-radius:6px}label{display:block;font-weight:600;margin-top:10px}
+.action-head{display:flex;gap:12px;align-items:center}.action-head input[type=checkbox]{width:20px;height:20px}.priority{width:85px!important}.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.before,.after{padding:12px;border-radius:6px;background:#fff5f5}.after{background:#f2fbf4}
+.score{font-size:28px;font-weight:700}.inline{display:inline-block}details{margin:14px 0}@media(max-width:700px){.diff-grid{grid-template-columns:1fr}}
+</style></head><body>
+<p><a href="/">← 返回</a></p><h1>{{ run.jd_label }}</h1>
+<p class="status" id="run-status">{{ run.status }}</p>
+<p><strong>当前步骤：</strong><span id="run-stage">{{ run.stage or '-' }}</span></p>
+<p><strong>已完成：</strong><span id="run-progress">{{ run.progress_current or 0 }} / {{ run.progress_total or 4 }}</span>
+{% if run.iteration %} · 第 {{ run.iteration }} / 2 轮{% endif %}</p>
+<progress id="progress-bar" value="{{ run.progress_current or 0 }}" max="{{ run.progress_total or 4 }}" style="width:100%"></progress>
+<p>输出文件：{{ run.output_name }}</p>
+{% if run.status in ['ANALYZING','MATCHING','HR_REVIEWING','STRATEGIZING','EDITING','APPLYING_PATCH','VALIDATING','REVIEWING','REVISING','HIRING_REVIEWED','FINALIZING'] %}<p>任务正在后台运行，本页会自动更新。</p>{% endif %}
+{% if strategy %}<h2>修改策略</h2>
+{% if run.status == 'WAITING_STRATEGY_APPROVAL' %}
+<form method="post" action="/ui/runs/{{ run.run_id }}/revise-strategy">
+  <label>岗位定位</label><textarea name="positioning" rows="3">{{ strategy.positioning }}</textarea>
+  <label>允许使用的关键词</label><textarea name="safe_keywords" rows="2">{{ strategy.safe_keywords | join(', ') }}</textarea>
+  <label>禁止使用的关键词</label><textarea name="forbidden_keywords" rows="2">{{ strategy.forbidden_keywords | join(', ') }}</textarea>
+  <h3>拟执行的修改</h3><p class="muted">取消勾选即可删除该策略；可以调整优先级和修改说明。</p>
+  {% for action in strategy.actions %}
+  <div class="card">
+    <div class="action-head"><input type="checkbox" name="keep_{{ action.index }}" checked>
+      <strong>{{ action.action }}</strong><span>{{ action.target_label }}</span>
+    </div>
+    <div class="muted"><code>{{ action.target_path }}</code></div>
+    <label>优先级（1 最高，5 最低）</label><input class="priority" type="number" min="1" max="5" name="priority_{{ action.index }}" value="{{ action.priority }}">
+    <label>修改说明</label><input type="text" name="instruction_{{ action.index }}" value="{{ action.instruction }}">
+    {% for evidence in action.evidence %}<div class="evidence"><strong>事实依据：</strong>{{ evidence }}</div>{% endfor %}
+  </div>
+  {% endfor %}
+  <button type="submit">保存策略修改</button>
+</form>
+<form method="post" action="/ui/runs/{{ run.run_id }}/approve-strategy"><button>批准策略并生成简历</button></form>
+{% else %}
+<div class="card"><strong>{{ strategy.positioning }}</strong><p>允许关键词：{% for word in strategy.safe_keywords %}<span class="chip">{{ word }}</span>{% endfor %}</p>
+<p>禁止关键词：{% for word in strategy.forbidden_keywords %}<span class="chip forbidden">{{ word }}</span>{% endfor %}</p></div>
+{% endif %}
+{% endif %}
+{% if validation %}<h2>事实校验</h2><div class="card"><strong>{{ '通过' if validation.passed else '未通过' }}</strong>
+{% if validation.issues %}{% for issue in validation.issues %}<p><span class="chip forbidden">{{ issue.severity }}</span> {{ issue.code }} · {{ issue.message }}<br><code>{{ issue.path }}</code></p>{% endfor %}{% else %}<p>未发现事实、数字、技术词或受保护字段问题。</p>{% endif %}</div>{% endif %}
+{% if hiring %}<h2>Hiring Manager</h2><div class="card"><div class="score">{{ hiring.total_score }} / 100 · {{ hiring.decision }}</div>
+{% set score_labels = {'jd_core_match':'JD 核心匹配','relevant_experience':'相关经历','technical_depth':'技术深度','business_impact':'业务价值','ats_keywords':'ATS 关键词','clarity':'清晰度','credibility':'可信度'} %}
+{% for key, value in hiring['scores'].items() %}<span class="chip">{{ score_labels[key] }} {{ value }}</span>{% endfor %}
+{% if hiring.concerns %}<h3>关注点</h3><ul>{% for item in hiring.concerns %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+{% if hiring.feedback %}<h3>建议</h3><ul>{% for item in hiring.feedback %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}</div>{% endif %}
+{% if diff %}<h2>最终 Diff</h2>{% for item in diff %}<div class="card"><h3>{{ item.target_label }}</h3><div class="muted"><code>{{ item.path }}</code> · {{ item.op }}</div>
+<div class="diff-grid"><div class="before"><strong>Original</strong><p>{{ item.original_text }}</p></div><div class="after"><strong>Revised</strong><p>{{ item.revised_text }}</p></div></div>
+<p><strong>修改原因：</strong>{{ item.reason }}</p>{% for evidence in item.evidence %}<div class="evidence"><strong>事实依据：</strong>{{ evidence }}</div>{% endfor %}</div>{% endfor %}{% endif %}
+{% if run.status == 'WAITING_FINAL_APPROVAL' %}
+<form class="inline" method="post" action="/ui/runs/{{ run.run_id }}/approve-final"><button>批准并导出最终 YAML</button></form>
+<form class="inline" method="post" action="/ui/runs/{{ run.run_id }}/restore-original"><button class="secondary">恢复完整原始版本</button></form>
+<form class="inline" method="post" action="/ui/runs/{{ run.run_id }}/reject-final"><button class="secondary">拒绝本次版本</button></form>
+<details><summary>高级：人工 Patch</summary><p>仍受白名单和 Fact Validator 约束。</p>
+<form method="post" action="/ui/runs/{{ run.run_id }}/manual-edit">
+  <textarea name="patch_json" style="width:100%;min-height:180px">{"operations": []}</textarea><br>
+  <button type="submit">应用 Patch 并重新校验</button>
+</form></details>
+{% endif %}
+{% if run.status == 'COMPLETED' %}<p>已生成：<code>{{ run.target_file }}</code></p>{% endif %}
+{% if error %}<h2>当前错误</h2><div class="card"><strong>{{ error.type }}</strong><p>{{ error.message }}</p><details><summary>技术详情</summary><pre>{{ artifacts.error }}</pre></details></div>{% endif %}
+{% if run.status in ['FAILED','INTERRUPTED'] %}<form method="post" action="/ui/runs/{{ run.run_id }}/retry"><button>从原 JD 重试分析</button></form>{% endif %}
+{% if artifacts %}<details><summary>技术详情：原始 JSON</summary>
+{% for name, raw in artifacts.items() %}{% if name != 'error' %}<h3>{{ name }}</h3><pre>{{ raw }}</pre>{% endif %}{% endfor %}</details>{% endif %}
+<script>
+const initialStatus = {{ run.status | tojson }};
+const activeStatuses = new Set(['ANALYZING','MATCHING','HR_REVIEWING','STRATEGIZING','EDITING','APPLYING_PATCH','VALIDATING','REVIEWING','REVISING','HIRING_REVIEWED','FINALIZING']);
+if (activeStatuses.has(initialStatus)) {
+  const timer = setInterval(async () => {
+    try {
+      const response = await fetch('/api/v1/resume/runs/{{ run.run_id }}', {cache: 'no-store'});
+      const state = await response.json();
+      document.getElementById('run-status').textContent = state.status;
+      document.getElementById('run-stage').textContent = state.stage || '-';
+      document.getElementById('run-progress').textContent = `${state.progress_current || 0} / ${state.progress_total || 4}`;
+      const bar = document.getElementById('progress-bar');
+      bar.value = state.progress_current || 0; bar.max = state.progress_total || 4;
+      if (!activeStatuses.has(state.status)) { clearInterval(timer); location.reload(); }
+    } catch (_) {}
+  }, 2000);
+}
+</script>
+</body></html>

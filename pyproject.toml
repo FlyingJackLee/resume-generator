@@ -1,0 +1,32 @@
+[project]
+name = "resume-generator"
+version = "0.2.0"
+description = "Fact-safe, JD-tailored resume compiler"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116",
+  "jinja2>=3.1",
+  "langgraph>=0.6",
+  "openai>=1.100",
+  "playwright>=1.40",
+  "pydantic>=2.11",
+  "pydantic-settings>=2.10",
+  "python-multipart>=0.0.20",
+  "pyyaml>=6.0",
+  "uvicorn>=0.35",
+  "watchdog>=4.0",
+]
+
+[dependency-groups]
+dev = [
+  "pypdf>=4.0",
+  "pytest>=8.0",
+  "pytest-cov>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["web/tests", "agent/tests"]
+pythonpath = ["agent/src"]
+
+[tool.uv]
+package = false

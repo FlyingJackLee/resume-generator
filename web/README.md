@@ -3,9 +3,8 @@
 用一份 `data/resume.yaml` 生成中/英文简历 PDF，同一套 HTML 可当网站。
 
 ## 首次安装
-    python3 -m venv .venv
-    .venv/bin/pip install -r requirements.txt
-    .venv/bin/playwright install chromium
+    uv sync
+    uv run playwright install chromium
 
 中文优先使用 MiSans，英文使用项目内置的 Roboto。MiSans 字体文件受小米官方
 许可约束，不能随仓库再次分发，因此 `assets/fonts-local/` 已加入 Git 忽略。
@@ -22,9 +21,9 @@
 
 ## 日常使用
 - 改内容：只编辑 `data/resume.yaml`。
-- 出 PDF：`.venv/bin/python build.py --lang all` → `build/resume.zh.pdf`、`build/resume.en.pdf`
+- 出 PDF：`uv run python web/build.py --lang all` → `web/build/resume.zh.pdf`、`web/build/resume.en.pdf`
 - 只出某语言：`--lang zh` 或 `--lang en`
-- 调排版预览：`.venv/bin/python build.py --html-only && .venv/bin/python build.py --watch`，浏览器开 http://127.0.0.1:8000/build/resume.zh.html ，改 YAML 后重建 HTML，手动刷新浏览器即可（所见即 PDF）。
+- 调排版预览：`uv run python web/build.py --html-only && uv run python web/build.py --watch`，浏览器开 http://127.0.0.1:8000/build/resume.zh.html ，改 YAML 后重建 HTML，手动刷新浏览器即可（所见即 PDF）。
 - 头像：放 `assets/photo.jpg`（不放则不显示）。
 
 ## 结构

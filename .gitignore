@@ -18,6 +18,9 @@ htmlcov/
 
 # Generated resume output
 /web/build/
+/agent/data/runs/*
+!/agent/data/runs/.gitkeep
+/agent/data/logs/
 
 # Editors and operating systems
 .idea/
@@ -26,6 +29,7 @@ htmlcov/
 *.swo
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
 
 # MiSans 官方许可允许使用，但不允许再次分发字体文件。
 /web/assets/fonts-local/

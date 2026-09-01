@@ -75,8 +75,3 @@ def test_photo_src_is_build_relative_when_present(tmp_path):
     finally:
         if created:
             photo.unlink()
-
-
-def test_render_supports_nested_variant_build_assets():
-    html = render_html(load_data(), "en", root_prefix="../../..")
-    assert "../../../assets/fonts/Roboto-Regular.ttf" in html

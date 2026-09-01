@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import yaml
@@ -60,7 +61,7 @@ def make_section_title(data):
     return _title
 
 
-def render_html(data, lang):
+def render_html(data, lang, root_prefix=".."):
     env = Environment(
         loader=FileSystemLoader(str(ROOT / "templates")),
         autoescape=select_autoescape(["html", "j2"]),
@@ -68,12 +69,14 @@ def render_html(data, lang):
     env.filters["L"] = lambda node: localize(node, lang)
     env.globals["icon"] = icon
     env.globals["section_title"] = make_section_title(data)
-    css = Markup((ROOT / "styles" / "awesome-cv.css").read_text(encoding="utf-8"))
+    css_text = (ROOT / "styles" / "awesome-cv.css").read_text(encoding="utf-8")
+    css_text = css_text.replace("../assets/", f"{root_prefix.rstrip('/')}/assets/")
+    css = Markup(css_text)
     photo = data["meta"].get("photo")
     photo_exists = bool(photo) and (ROOT / photo).exists()
     tpl = env.get_template("resume.html.j2")
     return tpl.render(
-        lang=lang, css=css, photo_exists=photo_exists,
+        lang=lang, css=css, photo_exists=photo_exists, root_prefix=root_prefix,
         meta=data["meta"], sections=data["sections"],
         footer_more=data["meta"]["footer_more"],
     )
@@ -114,13 +117,17 @@ def export_pdf(html_path: Path, pdf_path: Path, footer_label: str):
             browser.close()
 
 
-def build_one(lang: str, html_only: bool = False):
-    data = load_data()
-    BUILD_DIR.mkdir(exist_ok=True)
-    html = render_html(data, lang)
-    html_path = BUILD_DIR / f"resume.{lang}.html"
+def build_one(lang: str, html_only: bool = False, data_path="data/resume.yaml", build_dir=None):
+    data = load_data(data_path)
+    output_dir = Path(build_dir) if build_dir is not None else BUILD_DIR
+    if not output_dir.is_absolute():
+        output_dir = ROOT / output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+    root_prefix = os.path.relpath(ROOT, output_dir).replace(os.sep, "/")
+    html = render_html(data, lang, root_prefix=root_prefix)
+    html_path = output_dir / f"resume.{lang}.html"
     html_path.write_text(html, encoding="utf-8")
-    pdf_path = BUILD_DIR / f"resume.{lang}.pdf"
+    pdf_path = output_dir / f"resume.{lang}.pdf"
     if not html_only:
         label = localize(data["meta"]["footer_label"], lang)
         export_pdf(html_path, pdf_path, label)
@@ -130,26 +137,30 @@ def build_one(lang: str, html_only: bool = False):
 def main():
     ap = argparse.ArgumentParser(description="Build resume PDF/HTML from resume.yaml")
     ap.add_argument("--lang", choices=["zh", "en", "all"], default="all")
+    ap.add_argument("--data", default="data/resume.yaml", help="简历 YAML 路径")
+    ap.add_argument("--output-dir", default="build", help="HTML/PDF 输出目录")
     ap.add_argument("--html-only", action="store_true")
     ap.add_argument("--watch", action="store_true", help="起本地服务并监听改动重建 HTML")
     args = ap.parse_args()
     langs = ["zh", "en"] if args.lang == "all" else [args.lang]
     for lang in langs:
-        html_path, pdf_path = build_one(lang, html_only=args.html_only)
+        html_path, pdf_path = build_one(
+            lang, html_only=args.html_only, data_path=args.data, build_dir=args.output_dir
+        )
         print(f"[{lang}] {html_path.name}" + ("" if args.html_only else f" + {pdf_path.name}"))
 
     if args.watch:
-        _serve_and_watch(langs)
+        _serve_and_watch(langs, args.data, args.output_dir)
 
 
-def _serve_and_watch(langs):
+def _serve_and_watch(langs, data_path="data/resume.yaml", build_dir="build"):
     import http.server, socketserver, functools
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
 
     def rebuild():
         for lang in langs:
-            build_one(lang, html_only=True)
+            build_one(lang, html_only=True, data_path=data_path, build_dir=build_dir)
         print("rebuilt:", ", ".join(langs))
 
     class H(FileSystemEventHandler):
@@ -161,14 +172,25 @@ def _serve_and_watch(langs):
                     print("build error:", ex)
 
     obs = Observer()
-    for d in ("data", "templates", "styles"):
-        obs.schedule(H(), str(ROOT / d), recursive=True)
+    data_file = Path(data_path)
+    if not data_file.is_absolute():
+        data_file = ROOT / data_file
+    watch_dirs = {data_file.parent, ROOT / "templates", ROOT / "styles"}
+    for d in watch_dirs:
+        obs.schedule(H(), str(d), recursive=True)
     obs.start()
 
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
     socketserver.TCPServer.allow_reuse_address = True
     httpd = socketserver.TCPServer(("127.0.0.1", 8000), handler)
-    url = f"http://127.0.0.1:8000/build/resume.{langs[0]}.html"
+    output_dir = Path(build_dir)
+    if not output_dir.is_absolute():
+        output_dir = ROOT / output_dir
+    try:
+        output_url_path = output_dir.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError as exc:
+        raise ValueError("--watch 要求 --output-dir 位于项目目录内") from exc
+    url = f"http://127.0.0.1:8000/{output_url_path}/resume.{langs[0]}.html"
     print(f"serving {url}  (Ctrl-C to stop)")
     try:
         httpd.serve_forever()

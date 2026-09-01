@@ -10,7 +10,7 @@
   <div class="lang-toggle"><a href="resume.{{ 'en' if lang == 'zh' else 'zh' }}.html">{{ 'English' if lang == 'zh' else '中文' }}</a></div>
 
   <header class="header">
-    {% if photo_exists %}<img class="photo" src="../{{ meta.photo }}" alt="">{% endif %}
+    {% if photo_exists %}<img class="photo" src="{{ root_prefix }}/{{ meta.photo }}" alt="">{% endif %}
     <div class="name">
       {% set full = meta.name | L %}
       {% if lang == 'en' %}

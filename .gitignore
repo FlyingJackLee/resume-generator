@@ -29,3 +29,9 @@ Thumbs.db
 
 # MiSans 官方许可允许使用，但不允许再次分发字体文件。
 /assets/fonts-local/
+
+# Local secrets and generated job-specific resumes/JDs
+.env
+.env.*
+!.env.example
+/variants/

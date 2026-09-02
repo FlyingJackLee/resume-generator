@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import traceback
 import logging
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -198,6 +199,17 @@ class WorkflowService:
         error_path = run_dir / "error.json"
         if error_path.exists():
             error_path.replace(run_dir / "error.previous.json")
+        if (run_dir / "approved_strategy.json").exists():
+            # Gate ① 已经批准过，只是 compile 阶段本身失败（比如 Editor 越权）——从已批准的
+            # 策略重新 compile，不重新生成策略、不用再走一次 Gate①
+            return update_metadata(
+                run_dir,
+                status="EDITING",
+                stage="Resume Editor（重试编译）",
+                progress_current=0,
+                progress_total=4,
+                error=None,
+            )
         if (run_dir / "hr_review.json").exists():
             stage, progress = "Rewrite Strategy（断点续跑）", 3
         elif (run_dir / "match_report.json").exists():
@@ -278,6 +290,46 @@ class WorkflowService:
         except Exception as exc:
             logger.exception("validation resume failed run_id=%s", run_id)
             self._fail(run_dir, exc)
+
+    def auto_approve_timed_out_gates(self) -> list[str]:
+        """Scan every run for a Human Gate wait that has sat past
+        settings.auto_approve_minutes and approve it automatically.
+
+        Gate ①（策略）超时后直接原样接受 AI 生成的策略——没有质量分数可参考，超时本身就是
+        唯一信号。Gate ②（最终版本）超时后只有 hiring_score 已经达到 hiring_threshold 才会
+        自动批准；分数不够的 run 无论等多久都不会被自动处理，继续留给人工。auto_approve_minutes
+        <= 0 表示整个功能关闭。
+
+        Returns the run_ids that were auto-approved at Gate ① and now need
+        compile() launched in the background — Gate ② needs no further work
+        since approve_final() finishes synchronously.
+        """
+        minutes = self.settings.auto_approve_minutes
+        if minutes <= 0 or not self.runs_root.exists():
+            return []
+        threshold = timedelta(minutes=minutes)
+        now = datetime.now(UTC)
+        needs_compile: list[str] = []
+        for run_dir in self.runs_root.iterdir():
+            if not (run_dir.is_dir() and (run_dir / "run.json").exists()):
+                continue
+            metadata = read_metadata(run_dir)
+            status = metadata.get("status")
+            if status not in ("WAITING_STRATEGY_APPROVAL", "WAITING_FINAL_APPROVAL"):
+                continue
+            updated_at = metadata.get("updated_at")
+            if not updated_at or now - datetime.fromisoformat(updated_at) < threshold:
+                continue
+            run_id = metadata["run_id"]
+            try:
+                if status == "WAITING_STRATEGY_APPROVAL":
+                    self.approve_strategy(run_id)
+                    needs_compile.append(run_id)
+                elif (metadata.get("hiring_score") or 0) >= self.settings.hiring_threshold:
+                    self.approve_final(run_id)
+            except ResumeAgentError:
+                logger.exception("auto-approve failed run_id=%s", run_id)
+        return needs_compile
 
     def approve_strategy(
         self, run_id: str, override: RewriteStrategy | None = None

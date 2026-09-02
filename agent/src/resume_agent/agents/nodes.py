@@ -134,12 +134,22 @@ class AgentNodes:
             "fact_validation": state.get("fact_validation"),
             "hiring_evaluation": state.get("hiring_evaluation"),
         }
+        previous_patch = state.get("editor_patch")
+        previous_patch_block = (
+            f"PREVIOUS_PATCH (your own last attempt — reuse every operation whose path\n"
+            f"PREVIOUS_FEEDBACK did not flag exactly as-is, byte-for-byte including\n"
+            f"supported_by; only regenerate operations for paths the feedback flagged):\n"
+            f"{_json(previous_patch)}\n\n"
+            if previous_patch
+            else ""
+        )
         patch = self.provider.complete(
             system=self.prompts.load("resume_editor"),
             user=(
                 f"APPROVED_STRATEGY:\n{_json(state['approved_strategy'])}\n\n"
                 f"EDITABLE_CATALOG:\n{_json(editable_catalog(state['original_resume']))}\n\n"
                 f"MASTER_WORKING_COPY:\n{yaml.safe_dump(state['original_resume'], allow_unicode=True, sort_keys=False)}\n\n"
+                f"{previous_patch_block}"
                 f"PREVIOUS_FEEDBACK:\n{_json(feedback)}"
             ),
             output_type=ResumePatch,

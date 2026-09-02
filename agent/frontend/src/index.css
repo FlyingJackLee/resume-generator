@@ -340,6 +340,21 @@ button.secondary:hover,
   background: var(--page-bg);
 }
 
+.link-button {
+  background: none;
+  color: var(--primary);
+  border: 0;
+  padding: 0 0 var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  background: none;
+  color: var(--primary-hover);
+}
+
 select.page-size {
   width: auto;
   height: 32px;
@@ -734,6 +749,21 @@ input[type='checkbox'] {
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--text-muted);
+  width: 100%;
+  border: 1px solid transparent;
+  background: none;
+  font-family: inherit;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-rail-item:hover {
+  background: var(--primary-bg);
+}
+
+.workflow-rail-selected {
+  border-color: var(--primary);
 }
 
 .workflow-rail-icon {
@@ -767,6 +797,18 @@ input[type='checkbox'] {
 .workflow-rail-active .workflow-rail-icon {
   border-color: var(--primary);
   color: var(--primary);
+}
+
+.workflow-rail-error {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+  font-weight: 600;
+}
+
+.workflow-rail-error .workflow-rail-icon {
+  background: var(--status-danger-fg);
+  border-color: var(--status-danger-fg);
+  color: white;
 }
 
 .spin {

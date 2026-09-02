@@ -64,6 +64,10 @@ export function approveStrategy(runId: string, strategy: RewriteStrategy): Promi
   })
 }
 
+export function retryRun(runId: string): Promise<RunMetadata> {
+  return request(`${BASE}/${runId}/retry`, { method: 'POST' })
+}
+
 export function approveFinal(runId: string): Promise<RunMetadata> {
   return request(`${BASE}/${runId}/approve-final`, { method: 'POST' })
 }

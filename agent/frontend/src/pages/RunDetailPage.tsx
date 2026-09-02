@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   getRun,
@@ -7,6 +7,7 @@ import {
   getRunEvents,
   getRunFacts,
   getRunStructure,
+  retryRun,
   runStreamUrl,
 } from '../api/client'
 import { TERMINAL_STATUSES } from '../api/types'
@@ -18,7 +19,9 @@ import type {
   JobProfile,
   MatchReport,
   RewriteStrategy,
+  RunArtifacts,
   RunEvent,
+  RunMetadata,
   ValidationIssue,
   ValidationResult,
 } from '../api/types'
@@ -33,27 +36,40 @@ import TroubleshootingPanel from '../components/TroubleshootingPanel'
 import WorkflowRail from '../components/WorkflowRail'
 import { useTranslation } from '../i18n/LanguageContext'
 import { localize } from '../lib/format'
-import { deriveMacroSteps, deriveWorkflowSteps } from '../lib/workflowSteps'
+import { deriveDefaultSelectedStep, deriveMacroSteps, deriveWorkflowSteps } from '../lib/workflowSteps'
 
 export default function RunDetailPage() {
   const { runId } = useParams<{ runId: string }>()
   const queryClient = useQueryClient()
   const { t } = useTranslation()
+  const [selected, setSelected] = useState<string | null>(null)
+  const [autoFollow, setAutoFollow] = useState(true)
 
   const runQuery = useQuery({
     queryKey: ['run', runId],
     queryFn: () => getRun(runId!),
     enabled: Boolean(runId),
+    // Polling fallback independent of SSE — a Human Gate wait can sit idle for a
+    // long time, and browsers/proxies can silently drop an idle EventSource
+    // connection. This guarantees the UI catches up within a few seconds either
+    // way, terminal runs stop polling once reached.
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status && TERMINAL_STATUSES.includes(status) ? false : 5000
+    },
   })
+  const runActive = !runQuery.data || !TERMINAL_STATUSES.includes(runQuery.data.status)
   const artifactsQuery = useQuery({
     queryKey: ['run-artifacts', runId],
     queryFn: () => getRunArtifacts(runId!),
     enabled: Boolean(runId),
+    refetchInterval: runActive ? 5000 : false,
   })
   const eventsQuery = useQuery({
     queryKey: ['run-events', runId],
     queryFn: () => getRunEvents(runId!),
     enabled: Boolean(runId),
+    refetchInterval: runActive ? 5000 : false,
   })
   const factsQuery = useQuery({
     queryKey: ['run-facts', runId],
@@ -85,6 +101,22 @@ export default function RunDetailPage() {
     return () => source.close()
   }, [runId, queryClient])
 
+  useEffect(() => {
+    if (!autoFollow) return
+    const run = runQuery.data
+    if (!run) return
+    setSelected(deriveDefaultSelectedStep(run, eventsQuery.data ?? []))
+  }, [autoFollow, runQuery.data, eventsQuery.data])
+
+  const retryMutation = useMutation({
+    mutationFn: () => retryRun(runId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['run', runId] })
+      queryClient.invalidateQueries({ queryKey: ['run-artifacts', runId] })
+      queryClient.invalidateQueries({ queryKey: ['run-events', runId] })
+    },
+  })
+
   if (!runId) return null
   if (runQuery.isLoading) return <p>{t('runDetail.loading')}</p>
   if (runQuery.error) return <p className="error-text">{(runQuery.error as Error).message}</p>
@@ -102,6 +134,13 @@ export default function RunDetailPage() {
   const isFinalGate = run.status === 'WAITING_FINAL_APPROVAL'
   const workflowSteps = deriveWorkflowSteps(run, events)
   const macroSteps = deriveMacroSteps(workflowSteps)
+  const defaultStep = deriveDefaultSelectedStep(run, events)
+  const activeSelected = selected ?? defaultStep
+
+  const handleSelect = (key: string) => {
+    setSelected(key)
+    setAutoFollow(key === defaultStep)
+  }
 
   return (
     <div>
@@ -109,7 +148,7 @@ export default function RunDetailPage() {
       <StepStrip steps={macroSteps} />
 
       <div className="run-detail-grid">
-        <WorkflowRail steps={workflowSteps} />
+        <WorkflowRail steps={workflowSteps} selected={activeSelected} onSelect={handleSelect} />
 
         <div className="run-detail-main">
           {run.status === 'COMPLETED' && run.target_file && (
@@ -128,30 +167,30 @@ export default function RunDetailPage() {
               {artifacts.error.issues && artifacts.error.issues.length > 0 && (
                 <ValidationIssuesList issues={artifacts.error.issues} />
               )}
+              <button disabled={retryMutation.isPending} onClick={() => retryMutation.mutate()}>
+                {retryMutation.isPending ? t('runDetail.retry.retrying') : t('runDetail.retry.button')}
+              </button>
+              {retryMutation.error && (
+                <p className="error-text">{(retryMutation.error as Error).message}</p>
+              )}
             </div>
           )}
 
-          {artifacts?.job_profile && <JobProfileCard profile={artifacts.job_profile} />}
-          {artifacts?.match_report && <MatchReportCard report={artifacts.match_report} />}
-          {artifacts?.hr_review && <HrReviewCard review={artifacts.hr_review} />}
-
-          {isStrategyGate && artifacts?.rewrite_strategy && (
-            <StrategyGate
-              runId={run.run_id}
-              strategy={artifacts.rewrite_strategy}
-              pathLabels={pathLabels}
-              facts={facts}
-            />
-          )}
-          {!isStrategyGate && artifacts?.rewrite_strategy && (
-            <StrategyCard strategy={artifacts.rewrite_strategy} pathLabels={pathLabels} facts={facts} />
+          {!autoFollow && activeSelected !== defaultStep && (
+            <button className="link-button" onClick={() => handleSelect(defaultStep)}>
+              {t('runDetail.jumpToCurrent')}
+            </button>
           )}
 
-          {artifacts?.final_diff && artifacts.final_diff.length > 0 && (
-            <FinalDiffCard diff={artifacts.final_diff} facts={facts} />
-          )}
-
-          {isFinalGate && <FinalGate runId={run.run_id} />}
+          <SelectedStepContent
+            selected={activeSelected}
+            run={run}
+            artifacts={artifacts}
+            facts={facts}
+            pathLabels={pathLabels}
+            isStrategyGate={isStrategyGate}
+            isFinalGate={isFinalGate}
+          />
 
           <RunTabs run={run} events={events} />
         </div>
@@ -170,6 +209,83 @@ export default function RunDetailPage() {
       </div>
     </div>
   )
+}
+
+function StepPending() {
+  const { t } = useTranslation()
+  return <p className="muted">{t('runDetail.stepPending')}</p>
+}
+
+function SelectedStepContent({
+  selected,
+  run,
+  artifacts,
+  facts,
+  pathLabels,
+  isStrategyGate,
+  isFinalGate,
+}: {
+  selected: string
+  run: RunMetadata
+  artifacts: RunArtifacts | undefined
+  facts: Facts
+  pathLabels: Record<string, string>
+  isStrategyGate: boolean
+  isFinalGate: boolean
+}) {
+  const { t } = useTranslation()
+
+  switch (selected) {
+    case 'analyze_jd':
+      return artifacts?.job_profile ? <JobProfileCard profile={artifacts.job_profile} /> : <StepPending />
+    case 'match_resume':
+      return artifacts?.match_report ? <MatchReportCard report={artifacts.match_report} /> : <StepPending />
+    case 'hr_review':
+      return artifacts?.hr_review ? <HrReviewCard review={artifacts.hr_review} /> : <StepPending />
+    case 'build_strategy':
+    case 'gate1':
+      if (!artifacts?.rewrite_strategy) return <StepPending />
+      return isStrategyGate ? (
+        <StrategyGate
+          runId={run.run_id}
+          strategy={artifacts.rewrite_strategy}
+          pathLabels={pathLabels}
+          facts={facts}
+        />
+      ) : (
+        <StrategyCard strategy={artifacts.rewrite_strategy} pathLabels={pathLabels} facts={facts} />
+      )
+    case 'edit_resume':
+    case 'apply_patch':
+      return <p className="muted">{t('runDetail.compileStepPlaceholder')}</p>
+    case 'validate_facts':
+      return artifacts?.validation ? <ValidationCard validation={artifacts.validation} /> : <StepPending />
+    case 'hiring_manager':
+      return artifacts?.hiring_review ? (
+        <HiringReviewCard evaluation={artifacts.hiring_review} />
+      ) : (
+        <StepPending />
+      )
+    case 'gate2': {
+      const hasDiff = Boolean(artifacts?.final_diff && artifacts.final_diff.length > 0)
+      return (
+        <>
+          {isFinalGate && <FinalGate runId={run.run_id} />}
+          {hasDiff && <FinalDiffCard diff={artifacts!.final_diff!} facts={facts} />}
+          {!isFinalGate && !hasDiff && <StepPending />}
+        </>
+      )
+    }
+    case 'final':
+      if (run.status === 'COMPLETED' || run.status === 'REJECTED') {
+        // The COMPLETED callout is already pinned above; REJECTED has no dedicated
+        // card, a short status line is enough here.
+        return run.status === 'REJECTED' ? <p className="muted">{t('statusBadge.purple')}</p> : null
+      }
+      return <StepPending />
+    default:
+      return null
+  }
 }
 
 function ValidationIssuesList({ issues }: { issues: ValidationIssue[] }) {

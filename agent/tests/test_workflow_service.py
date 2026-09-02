@@ -1,4 +1,5 @@
 import json
+import time
 
 from resume_agent.config import Settings
 from resume_agent.models import ResumePatch, RewriteStrategy
@@ -95,6 +96,38 @@ def test_stale_active_run_is_marked_interrupted_and_can_retry(tmp_path):
     restarted = make_service(tmp_path)
     assert restarted.get(run_id)["status"] == "INTERRUPTED"
     assert restarted.retry_analysis(run_id)["status"] == "ANALYZING"
+
+
+class DeviatingEditorProvider(HappyProvider):
+    def complete(self, *, system, user, output_type, temperature):
+        if output_type is ResumePatch:
+            self.calls.append(output_type.__name__)
+            return ResumePatch.model_validate({
+                "operations": [{
+                    "op": "reorder",
+                    "path": "/sections/work/entries",
+                    "value": ["some_entry"],
+                }]
+            })
+        return super().complete(system=system, user=user, output_type=output_type, temperature=temperature)
+
+
+def test_retry_after_compile_failure_resumes_compile_without_regenerating_strategy(tmp_path):
+    provider = DeviatingEditorProvider()
+    settings = Settings(api_key="fake", max_iterations=2)
+    service = WorkflowService(provider, settings, runs_root=tmp_path)
+    run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+    assert service.get(run_id)["status"] == "FAILED"
+    assert not (service.resolve_run(run_id) / "candidate_resume.yaml").exists()
+
+    strategy_before = (service.resolve_run(run_id) / "approved_strategy.json").read_text(encoding="utf-8")
+    retried = service.retry_analysis(run_id)
+    assert retried["status"] == "EDITING"
+    strategy_after = (service.resolve_run(run_id) / "approved_strategy.json").read_text(encoding="utf-8")
+    assert strategy_after == strategy_before
 
 
 def test_company_is_auto_filled_from_job_profile_when_not_provided(tmp_path):
@@ -229,3 +262,56 @@ def test_langsmith_trace_url_reflects_settings(tmp_path):
     default_service = make_service(tmp_path)
     run_id_2 = default_service.create("Google AI Agent 2", "A sufficiently long pasted job description.")["run_id"]
     assert default_service.get(run_id_2)["langsmith_trace_url"] is None
+
+
+def test_auto_approve_strategy_gate_after_timeout(tmp_path):
+    settings = Settings(api_key="fake", auto_approve_minutes=0.001)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    assert service.get(run_id)["status"] == "WAITING_STRATEGY_APPROVAL"
+
+    time.sleep(0.1)
+    assert service.auto_approve_timed_out_gates() == [run_id]
+    assert service.get(run_id)["status"] == "EDITING"
+
+
+def test_auto_approve_final_gate_withheld_below_hiring_threshold(tmp_path):
+    settings = Settings(api_key="fake", hiring_threshold=95, max_iterations=1, auto_approve_minutes=0.001)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+    reviewed = service.get(run_id)
+    assert reviewed["status"] == "WAITING_FINAL_APPROVAL"
+    assert reviewed["hiring_score"] < 95
+
+    time.sleep(0.1)
+    assert service.auto_approve_timed_out_gates() == []
+    assert service.get(run_id)["status"] == "WAITING_FINAL_APPROVAL"
+
+
+def test_auto_approve_final_gate_after_timeout_when_score_passes(tmp_path):
+    settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=1, auto_approve_minutes=0.001)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+    assert service.get(run_id)["hiring_score"] >= 85
+
+    time.sleep(0.1)
+    assert service.auto_approve_timed_out_gates() == []
+    assert service.get(run_id)["status"] == "COMPLETED"
+
+
+def test_auto_approve_disabled_when_minutes_is_zero(tmp_path):
+    settings = Settings(api_key="fake", auto_approve_minutes=0)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+
+    time.sleep(0.1)
+    assert service.auto_approve_timed_out_gates() == []
+    assert service.get(run_id)["status"] == "WAITING_STRATEGY_APPROVAL"

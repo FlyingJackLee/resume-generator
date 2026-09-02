@@ -204,9 +204,9 @@ class ReorderProvider(HappyProvider):
                         },
                         {
                             "action": "reorder",
-                            "target_path": "/sections/work/entries",
+                            "target_path": "/sections/projects/entries",
                             "priority": 2,
-                            "instruction": "Put the most recent role first",
+                            "instruction": "Put the most relevant project first",
                             "supported_by": [],
                         },
                     ],
@@ -226,12 +226,13 @@ class ReorderProvider(HappyProvider):
                         },
                         {
                             "op": "reorder",
-                            "path": "/sections/work/entries",
+                            "path": "/sections/projects/entries",
                             "value": [
-                                "zhejiang_science_education_broadcasting_producti",
-                                "huawei_cloud_computing_technologies_co_ltd",
-                                "qilin_communications_co_ltd",
-                                "china_telecom_corporation_limited",
+                                "backend_development",
+                                "full_stack_development",
+                                "system_architecture_core_development_3",
+                                "ai_agent_full_stack_development",
+                                "system_architecture_core_development",
                             ],
                         },
                     ]
@@ -283,19 +284,21 @@ def test_structure_endpoint_candidate_source_reflects_reorder(tmp_path):
                 )
             ).json()
 
-            input_order = _entry_order(input_catalog, "/sections/work/entries")
-            candidate_order = _entry_order(candidate_catalog, "/sections/work/entries")
+            input_order = _entry_order(input_catalog, "/sections/projects/entries")
+            candidate_order = _entry_order(candidate_catalog, "/sections/projects/entries")
             assert input_order == [
-                "china_telecom_corporation_limited",
-                "qilin_communications_co_ltd",
-                "huawei_cloud_computing_technologies_co_ltd",
-                "zhejiang_science_education_broadcasting_producti",
+                "system_architecture_core_development",
+                "ai_agent_full_stack_development",
+                "system_architecture_core_development_3",
+                "full_stack_development",
+                "backend_development",
             ]
             assert candidate_order == [
-                "zhejiang_science_education_broadcasting_producti",
-                "huawei_cloud_computing_technologies_co_ltd",
-                "qilin_communications_co_ltd",
-                "china_telecom_corporation_limited",
+                "backend_development",
+                "full_stack_development",
+                "system_architecture_core_development_3",
+                "ai_agent_full_stack_development",
+                "system_architecture_core_development",
             ]
             assert set(input_order) == set(candidate_order)
     asyncio.run(scenario())

@@ -16,17 +16,18 @@
 - JD Analyzer → Matcher → HR Reviewer → Rewrite Strategy 的 LangGraph 分析图。
 - Human Gate ① 后才运行 Editor → Patch → Validator → Hiring Manager 编译图。
 - Validator/Hiring Manager 最多触发两次 Editor 尝试，Critical/High 事实问题阻断导出。
-- FastAPI、简单操作页面和 spec 中的 run/strategy/final/diff/manual-edit API。
+- FastAPI，暴露 spec 中的 run/strategy/final/diff/manual-edit API（纯 JSON，见下方
+  "前端"）。
 - Human Gate ② 支持批准、拒绝、恢复原始版本和受事实约束的人工 Patch。
 - Run 列表分页、事件时间线（`events.jsonl`）、SSE 实时状态流、简历预览渲染端点
   （复用 `web/` 的排版逻辑）、简历结构树/事实查询端点——这些是给 `agent/frontend/`
-  新版操作台用的 API，见下方"新版前端"。
+  操作台用的 API，见下方"前端"。
 
-## 新版前端（agent/frontend/，开发中）
+## 前端（agent/frontend/）
 
-正在用 React SPA 替换 `agent/templates/*.html` 这套 Jinja 页面，两者当前共存。已经覆盖：
-Run 列表、新建 Run、实时进度（SSE）、Human Gate ①（策略编辑审批）、Human Gate ②（批准/驳回/
-恢复原始版本 + 结构化人工 Patch 构建器）、在线查看。启动方式和现状见
+React SPA，覆盖完整流程：Run 列表、新建 Run、实时进度（SSE）、Human Gate ①（策略编辑
+审批）、Human Gate ②（批准/驳回/恢复原始版本 + 结构化人工 Patch 构建器）、在线查看。
+旧版 Jinja 模板页面已下线，`GET /` 只返回一个指向前端的 JSON 提示。启动方式和现状见
 [`agent/frontend/README.md`](frontend/README.md)。分期规划和已知缺口见根目录
 [`FRONTEND_ROADMAP.md`](../FRONTEND_ROADMAP.md)。
 
@@ -39,7 +40,9 @@ uv sync
 uv run uvicorn resume_agent.api.main:app --app-dir agent/src --host 127.0.0.1 --port 8010
 ```
 
-浏览器打开 <http://127.0.0.1:8010>，填写类似 `Google AI Agent` 的 JD 标识并粘贴
+一键同时起前端+后端见根目录 [`README.md`](../README.md)（`./dev.sh`）。
+
+浏览器打开 <http://localhost:5173>（前端），填写类似 `Google AI Agent` 的 JD 标识并粘贴
 JD。最终批准后，文件写入：
 
 ```text
@@ -51,8 +54,11 @@ agent/data/runs/<run_id>/google_ai_agent_resume.yaml
 - `RESUME_AGENT_API_KEY`
 - `RESUME_AGENT_BASE_URL`，DeepSeek 默认为 `https://api.deepseek.com`
 - `RESUME_AGENT_MODEL`，默认为 `deepseek-chat`
-- `RESUME_AGENT_HIRING_THRESHOLD`，默认为 `85`
+- `RESUME_AGENT_HIRING_THRESHOLD`，默认为 `75`
 - `RESUME_AGENT_MAX_ITERATIONS`，默认为 `2`
+- `RESUME_AGENT_AUTO_APPROVE_MINUTES`，默认为 `5`；Human Gate 等待超过这么多分钟后自动
+  处理——Gate①直接接受 AI 策略，Gate②只有 `hiring_score` 达到上面的阈值才会自动批准导出，
+  分数不够会一直留给人工，不会被强行放行。设为 `0` 关闭。
 - `RESUME_AGENT_LOG_LEVEL`，默认为 `INFO`；设为 `DEBUG` 可记录 LangGraph 事件、
   每个节点输出、完整模型请求和原始模型响应。
 - `RESUME_AGENT_LOG_FILE`，默认为 `agent/data/logs/resume-agent.log`，使用滚动日志。

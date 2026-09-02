@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from threading import Thread
 from typing import Annotated, Callable
@@ -24,7 +26,11 @@ from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
 
 
+logger = logging.getLogger(__name__)
+
 DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+AUTO_APPROVE_POLL_SECONDS = 30
 
 TERMINAL_STATUSES = {"COMPLETED", "FAILED", "INTERRUPTED", "REJECTED"}
 
@@ -67,7 +73,31 @@ ServiceDep = Annotated[WorkflowService, Depends(get_workflow)]
 
 
 def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> FastAPI:
-    app = FastAPI(title="AI Resume Compiler", version="1.1")
+    def launch(target, run_id: str) -> None:
+        Thread(target=target, args=(run_id,), daemon=True, name=f"resume-{run_id}").start()
+
+    def current_workflow() -> WorkflowService:
+        return service_factory() if service_factory is not None else default_service()
+
+    async def auto_approve_loop() -> None:
+        while True:
+            await asyncio.sleep(AUTO_APPROVE_POLL_SECONDS)
+            try:
+                workflow = current_workflow()
+                for run_id in workflow.auto_approve_timed_out_gates():
+                    launch(workflow.compile, run_id)
+            except Exception:
+                logger.exception("auto-approve scheduler tick failed")
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        task = asyncio.create_task(auto_approve_loop())
+        try:
+            yield
+        finally:
+            task.cancel()
+
+    app = FastAPI(title="AI Resume Compiler", version="1.1", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=DEV_ORIGINS,
@@ -83,9 +113,6 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
     @app.exception_handler(ResumeAgentError)
     async def resume_error(_: Request, exc: ResumeAgentError):
         return JSONResponse(status_code=400, content={"detail": str(exc)})
-
-    def launch(target, run_id: str) -> None:
-        Thread(target=target, args=(run_id,), daemon=True, name=f"resume-{run_id}").start()
 
     @app.post("/api/v1/resume/runs", status_code=202)
     async def create_run(payload: CreateRunRequest, workflow: ServiceDep):
@@ -119,16 +146,26 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
 
         async def event_source():
             seen = 0
+            idle_seconds = 0.0
             while True:
                 if await request.is_disconnected():
                     return
                 events = workflow.get_events(run_id)
-                for event in events[seen:]:
-                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-                seen = len(events)
+                if len(events) > seen:
+                    for event in events[seen:]:
+                        yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    seen = len(events)
+                    idle_seconds = 0.0
                 if events and str(events[-1].get("status", "")) in TERMINAL_STATUSES:
                     return
+                # Human Gate waits can sit idle for many minutes with nothing new to
+                # send; without a periodic ping, browsers/proxies silently drop the
+                # connection and the frontend never learns the gate was resolved.
+                if idle_seconds >= 15.0:
+                    yield ": keep-alive\n\n"
+                    idle_seconds = 0.0
                 await asyncio.sleep(0.4)
+                idle_seconds += 0.4
 
         return StreamingResponse(event_source(), media_type="text/event-stream")
 
@@ -169,7 +206,10 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
     @app.post("/api/v1/resume/runs/{run_id}/retry", status_code=202)
     async def retry_run(run_id: str, workflow: ServiceDep):
         metadata = workflow.retry_analysis(run_id)
-        launch(workflow.analyze, run_id)
+        if metadata["status"] == "EDITING":
+            launch(workflow.compile, run_id)
+        else:
+            launch(workflow.analyze, run_id)
         return metadata
 
     @app.post("/api/v1/resume/runs/{run_id}/retry-validation", status_code=202)

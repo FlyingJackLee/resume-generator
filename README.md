@@ -20,37 +20,46 @@ uv run playwright install chromium
 uv run pytest
 ```
 
-新版 React 操作台（`agent/frontend/`）额外需要 Node.js 和 `pnpm`（`corepack enable` 或
-`npm install -g pnpm` 都可以装）；旧版 Jinja 页面和 `web/` 不需要 Node。
+React 操作台（`agent/frontend/`）额外需要 Node.js 和 `pnpm`（`corepack enable` 或
+`npm install -g pnpm` 都可以装）；`web/` 不需要 Node。
 
 Web 项目的使用方式见 [`web/README.md`](web/README.md)，Agent 的当前实现范围见
-[`agent/README.md`](agent/README.md)，正在开发中的 React 操作台见
+[`agent/README.md`](agent/README.md)，React 操作台见
 [`agent/frontend/README.md`](agent/frontend/README.md)。
 
 ## 启动 Agent（本地试跑）
 
-1. 起后端（需要一个真实的 LLM API Key，DeepSeek/OpenAI-compatible 均可）：
+首次运行需要装依赖、填 API Key：
 
-   ```bash
-   cp .env.example .env
-   # 编辑 .env，至少填写 RESUME_AGENT_API_KEY
-   uv sync
-   uv run uvicorn resume_agent.api.main:app --app-dir agent/src --host 127.0.0.1 --port 8010
-   ```
+```bash
+cp .env.example .env
+# 编辑 .env，至少填写 RESUME_AGENT_API_KEY
+uv sync
+cd agent/frontend && pnpm install && cd ../..
+```
 
-2. 两种界面任选（可以同时开，互不影响，数据是同一份）：
+之后一键启动前后端（同一个终端，`Ctrl+C` 一次性关闭两个进程）：
 
-   - **旧版页面**（够用、无需额外安装）：浏览器直接打开 <http://127.0.0.1:8010>
-   - **新版 React 操作台**（正在替换旧版，Run 列表/新建/实时进度/Human Gate①②/在线查看
-     都已可用；开发中，样式还很朴素）：另开一个终端
+```bash
+./dev.sh
+```
 
-     ```bash
-     cd agent/frontend
-     pnpm install
-     pnpm dev
-     ```
+后端 <http://127.0.0.1:8010>（纯 API，不再提供网页）、前端 <http://localhost:5173>
+（Vite 会把 API 请求代理到 8010，不用改配置）。
 
-     浏览器打开 <http://localhost:5173>（Vite 会把 API 请求代理到 8010，不用改配置）
+需要分开跑（比如只测后端接口）时，两个进程也可以照旧各自起：
+
+```bash
+uv run uvicorn resume_agent.api.main:app --app-dir agent/src --host 127.0.0.1 --port 8010
+# 另开一个终端
+cd agent/frontend && pnpm dev
+```
+
+> 如果 8010/5173 端口已被占用（比如 AI 助手验证功能时临时起的服务忘了关），先释放端口再自己起：
+>
+> ```bash
+> lsof -ti:8010,5173 | xargs kill
+> ```
 
 详细说明见 [`agent/README.md`](agent/README.md) 和 [`agent/frontend/README.md`](agent/frontend/README.md)；
-两套前端目前分别停在哪个阶段、还差什么，记在 [`FRONTEND_ROADMAP.md`](FRONTEND_ROADMAP.md) 里。
+开发进度和分期规划记在 [`FRONTEND_ROADMAP.md`](FRONTEND_ROADMAP.md) 里。

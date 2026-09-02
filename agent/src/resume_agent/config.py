@@ -15,8 +15,9 @@ class Settings(BaseSettings):
     base_url: str = "https://api.deepseek.com"
     model: str = "deepseek-chat"
     timeout_seconds: int = Field(default=180, ge=10, le=600)
-    hiring_threshold: int = Field(default=85, ge=0, le=100)
+    hiring_threshold: int = Field(default=75, ge=0, le=100)
     max_iterations: int = Field(default=2, ge=0, le=5)
+    auto_approve_minutes: float = Field(default=5.0, ge=0)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     log_file: str = "agent/data/logs/resume-agent.log"
     log_max_bytes: int = Field(default=10_000_000, ge=100_000)

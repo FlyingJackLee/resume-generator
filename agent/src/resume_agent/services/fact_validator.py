@@ -66,14 +66,16 @@ def _validate_text(
     current = _text(value)
     evidence_tech = {token.casefold() for token in WORD_PATTERN.findall(evidence)}
     new_tech = sorted(
-        token
-        for token in WORD_PATTERN.findall(current)
-        if token.casefold() in technology_terms
-        and token.casefold() not in evidence_tech
-        and not any(
-            hint.casefold() in evidence.casefold()
-            for hint in TECH_TRANSLATION_HINTS.get(token.casefold(), ())
-        )
+        {
+            token
+            for token in WORD_PATTERN.findall(current)
+            if token.casefold() in technology_terms
+            and token.casefold() not in evidence_tech
+            and not any(
+                hint.casefold() in evidence.casefold()
+                for hint in TECH_TRANSLATION_HINTS.get(token.casefold(), ())
+            )
+        }
     )
     if new_tech:
         issues.append(_issue("V03", "high", path, f"技术词缺少所选事实支持：{new_tech}"))

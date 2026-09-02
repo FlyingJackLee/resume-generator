@@ -43,6 +43,10 @@ export interface Translations {
     round: string
     generated: string
     runFailed: string
+    retry: { button: string; retrying: string }
+    jumpToCurrent: string
+    compileStepPlaceholder: string
+    stepPending: string
     jobProfile: { title: string; weight: string }
     matchReport: { title: string; confidence: string }
     hrReview: {
@@ -217,6 +221,10 @@ const zh: Translations = {
     round: '第 {n} 轮',
     generated: '已生成：{file}',
     runFailed: '运行失败',
+    retry: { button: '重试', retrying: '重试中…' },
+    jumpToCurrent: '回到当前步骤',
+    compileStepPlaceholder: '这一步没有独立产出可看，请查看 Fact Validator / Hiring Manager 或最终 Diff。',
+    stepPending: '该步骤尚未产出内容',
     jobProfile: { title: '岗位画像', weight: '（权重 {n}）' },
     matchReport: { title: '匹配报告', confidence: '（置信度 {n}%）' },
     hrReview: {
@@ -391,6 +399,10 @@ const en: Translations = {
     round: 'Round {n}',
     generated: 'Generated: {file}',
     runFailed: 'Run Failed',
+    retry: { button: 'Retry', retrying: 'Retrying…' },
+    jumpToCurrent: 'Jump to current step',
+    compileStepPlaceholder: 'No standalone output for this step — see Fact Validator / Hiring Manager or the final diff.',
+    stepPending: 'Nothing to show for this step yet',
     jobProfile: { title: 'Job Profile', weight: '(Weight {n})' },
     matchReport: { title: 'Match Report', confidence: '(Confidence {n}%)' },
     hrReview: {

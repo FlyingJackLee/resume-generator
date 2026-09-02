@@ -1,0 +1,46 @@
+:root {
+  /* Primary (blue) */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-bg: #eff6ff;
+  --primary-border: #bfdbfe;
+
+  /* Neutrals */
+  --page-bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --text-faint: #9ca3af;
+
+  /* Status semantics: {bg, fg} pairs */
+  --status-neutral-bg: #f3f4f6;
+  --status-neutral-fg: #4b5563;
+  --status-success-bg: #dcfce7;
+  --status-success-fg: #16a34a;
+  --status-warning-bg: #fef3c7;
+  --status-warning-fg: #d97706;
+  --status-info-bg: #dbeafe;
+  --status-info-fg: #2563eb;
+  --status-danger-bg: #fee2e2;
+  --status-danger-fg: #dc2626;
+  --status-purple-bg: #ede9fe;
+  --status-purple-fg: #7c3aed;
+
+  /* Scale */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --sidebar-width: 240px;
+
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color-scheme: light;
+}

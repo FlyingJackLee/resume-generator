@@ -18,6 +18,17 @@
 - Validator/Hiring Manager 最多触发两次 Editor 尝试，Critical/High 事实问题阻断导出。
 - FastAPI、简单操作页面和 spec 中的 run/strategy/final/diff/manual-edit API。
 - Human Gate ② 支持批准、拒绝、恢复原始版本和受事实约束的人工 Patch。
+- Run 列表分页、事件时间线（`events.jsonl`）、SSE 实时状态流、简历预览渲染端点
+  （复用 `web/` 的排版逻辑）、简历结构树/事实查询端点——这些是给 `agent/frontend/`
+  新版操作台用的 API，见下方"新版前端"。
+
+## 新版前端（agent/frontend/，开发中）
+
+正在用 React SPA 替换 `agent/templates/*.html` 这套 Jinja 页面，两者当前共存。已经覆盖：
+Run 列表、新建 Run、实时进度（SSE）、Human Gate ①（策略编辑审批）、Human Gate ②（批准/驳回/
+恢复原始版本 + 结构化人工 Patch 构建器）、在线查看。启动方式和现状见
+[`agent/frontend/README.md`](frontend/README.md)。分期规划和已知缺口见根目录
+[`FRONTEND_ROADMAP.md`](../FRONTEND_ROADMAP.md)。
 
 ## 配置与启动
 

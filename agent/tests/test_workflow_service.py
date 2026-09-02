@@ -1,3 +1,5 @@
+import json
+
 from resume_agent.config import Settings
 from resume_agent.models import ResumePatch, RewriteStrategy
 from resume_agent.services.workflow_service import WorkflowService
@@ -93,3 +95,137 @@ def test_stale_active_run_is_marked_interrupted_and_can_retry(tmp_path):
     restarted = make_service(tmp_path)
     assert restarted.get(run_id)["status"] == "INTERRUPTED"
     assert restarted.retry_analysis(run_id)["status"] == "ANALYZING"
+
+
+def test_company_is_auto_filled_from_job_profile_when_not_provided(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    assert service.get(run_id)["company"] is None
+    service.analyze(run_id)
+    assert service.get(run_id)["company"] == "Google"
+
+
+def test_explicit_company_is_not_overwritten_by_auto_fill(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create(
+        "Google AI Agent", "A sufficiently long pasted job description.", company="Custom Co"
+    )["run_id"]
+    service.analyze(run_id)
+    assert service.get(run_id)["company"] == "Custom Co"
+
+
+def test_update_notes(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    assert service.update_notes(run_id, "跟进一下内推")["notes"] == "跟进一下内推"
+    assert service.get(run_id)["notes"] == "跟进一下内推"
+
+
+def test_list_runs_pagination_and_sort_order(tmp_path):
+    service = make_service(tmp_path)
+    ids = [
+        service.create(f"JD {i}", "A sufficiently long pasted job description.")["run_id"]
+        for i in range(3)
+    ]
+
+    all_runs = service.list_runs()
+    assert all_runs["total"] == 3
+    assert [item["run_id"] for item in all_runs["items"]] == list(reversed(ids))
+
+    first_page = service.list_runs(page=1, page_size=2)
+    assert first_page["total"] == 3
+    assert len(first_page["items"]) == 2
+    second_page = service.list_runs(page=2, page_size=2)
+    assert len(second_page["items"]) == 1
+    assert {item["run_id"] for item in first_page["items"]} | {
+        item["run_id"] for item in second_page["items"]
+    } == set(ids)
+
+
+def test_get_events_returns_run_history(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    events = service.get_events(run_id)
+    assert events[0]["status"] == "INIT"
+    assert any(event["status"] == "ANALYZING" for event in events)
+
+
+def test_manual_edit_accumulates_diff_with_editor_patch(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+    assert service.get(run_id)["status"] == "WAITING_FINAL_APPROVAL"
+
+    diff_before = service.get_diff(run_id)
+    assert [item["path"] for item in diff_before] == ["/sections/introduction/body"]
+
+    patch = ResumePatch.model_validate(
+        {
+            "operations": [
+                {
+                    "op": "replace",
+                    "path": "/sections/skills/rows/ai_agent_development/items",
+                    "supported_by": ["fact_introduction_body"],
+                    "reason": "manual tweak",
+                    "value": {"zh": "手动新增技能描述", "en": "Manually added skill text"},
+                }
+            ]
+        }
+    )
+    service.manual_edit(run_id, patch)
+
+    diff_after = service.get_diff(run_id)
+    paths = {item["path"] for item in diff_after}
+    assert paths == {
+        "/sections/introduction/body",
+        "/sections/skills/rows/ai_agent_development/items",
+    }
+
+
+def test_restore_original_clears_accumulated_operations(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+
+    service.restore_original(run_id)
+    assert service.get_diff(run_id) == []
+    all_ops_path = service.resolve_run(run_id) / "all_operations.json"
+    assert all_ops_path.exists()
+    assert json.loads(all_ops_path.read_text(encoding="utf-8")) == []
+
+
+def test_approve_final_and_reject_final_update_stage(tmp_path):
+    approve_service = make_service(tmp_path)
+    run_id = approve_service.create(
+        "Google AI Agent", "A sufficiently long pasted job description."
+    )["run_id"]
+    approve_service.analyze(run_id)
+    approve_service.approve_strategy(run_id)
+    approve_service.compile(run_id)
+    approved = approve_service.approve_final(run_id)
+    assert approved["stage"] != "Human Gate ②：等待最终确认"
+
+    reject_service = make_service(tmp_path)
+    run_id_2 = reject_service.create(
+        "Google AI Agent 2", "A sufficiently long pasted job description."
+    )["run_id"]
+    reject_service.analyze(run_id_2)
+    reject_service.approve_strategy(run_id_2)
+    reject_service.compile(run_id_2)
+    rejected = reject_service.reject_final(run_id_2)
+    assert rejected["stage"] != "Human Gate ②：等待最终确认"
+
+
+def test_langsmith_trace_url_reflects_settings(tmp_path):
+    settings = Settings(api_key="fake", langsmith_project_url="https://smith.langchain.com/o/x/projects/p/y")
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    assert service.get(run_id)["langsmith_trace_url"] == "https://smith.langchain.com/o/x/projects/p/y"
+
+    default_service = make_service(tmp_path)
+    run_id_2 = default_service.create("Google AI Agent 2", "A sufficiently long pasted job description.")["run_id"]
+    assert default_service.get(run_id_2)["langsmith_trace_url"] is None

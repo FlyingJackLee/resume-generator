@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     log_file: str = "agent/data/logs/resume-agent.log"
     log_max_bytes: int = Field(default=10_000_000, ge=100_000)
     log_backup_count: int = Field(default=5, ge=1, le=20)
+    langsmith_project_url: str = ""
 
 
 @lru_cache

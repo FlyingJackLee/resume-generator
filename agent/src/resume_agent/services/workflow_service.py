@@ -19,6 +19,7 @@ from .master_resume import load_master_resume, prepare_working_resume
 from .patch_engine import apply_patch
 from .run_store import (
     create_run,
+    read_events,
     read_json,
     read_metadata,
     read_yaml,
@@ -79,12 +80,18 @@ class WorkflowService:
             raise ResumeAgentError(f"run 不存在：{run_id}")
         return run_dir
 
-    def create(self, jd_label: str, jd: str) -> dict[str, Any]:
+    def create(self, jd_label: str, jd: str, company: str | None = None) -> dict[str, Any]:
         master_bytes = self.master_path.read_bytes()
-        run_dir = create_run(jd_label, jd, master_bytes, root=self.runs_root)
+        run_dir = create_run(jd_label, jd, master_bytes, root=self.runs_root, company=company)
         working = prepare_working_resume(load_master_resume(self.master_path))
         write_yaml(run_dir, "input_resume.yaml", working)
         return update_metadata(run_dir, status="ANALYZING")
+
+    def _company_update(self, run_dir: Path, job_profile: dict[str, Any]) -> dict[str, Any]:
+        if read_metadata(run_dir).get("company"):
+            return {}
+        target_company = (job_profile or {}).get("target_company")
+        return {"company": target_company} if target_company else {}
 
     def analyze(self, run_id: str) -> None:
         run_dir = self.resolve_run(run_id)
@@ -113,6 +120,7 @@ class WorkflowService:
                     stage="Rewrite Strategy（断点续跑）",
                     progress_current=3,
                     progress_total=4,
+                    **self._company_update(run_dir, state["job_profile"]),
                 )
                 update = self.nodes.build_strategy(state)
                 write_json(run_dir, "rewrite_strategy.json", update["rewrite_strategy"])
@@ -146,12 +154,21 @@ class WorkflowService:
                 progress_total=4,
             )
             result = dict(state)
-            for event in self.analysis_graph.stream(state, stream_mode="updates"):
+            for event in self.analysis_graph.stream(
+                state,
+                config={"tags": [run_id], "run_name": run_id},
+                stream_mode="updates",
+            ):
                 for node_name, update in event.items():
                     logger.debug("langgraph event run_id=%s node=%s update=%s", run_id, node_name, update)
                     result.update(update)
                     key, filename = artifacts[node_name]
                     write_json(run_dir, filename, result[key])
+                    extra = (
+                        self._company_update(run_dir, result["job_profile"])
+                        if node_name == "analyze_jd"
+                        else {}
+                    )
                     update_metadata(
                         run_dir,
                         status=update.get("status", "ANALYZING"),
@@ -159,6 +176,7 @@ class WorkflowService:
                         last_completed_node=node_name,
                         progress_current=completed[node_name],
                         progress_total=4,
+                        **extra,
                     )
             update_metadata(
                 run_dir,
@@ -307,7 +325,9 @@ class WorkflowService:
             )
             result = dict(state)
             for event in self.compile_graph.stream(
-                state, config={"recursion_limit": 30}, stream_mode="updates"
+                state,
+                config={"recursion_limit": 30, "tags": [run_id], "run_name": run_id},
+                stream_mode="updates",
             ):
                 for node_name, update in event.items():
                     logger.debug("langgraph event run_id=%s node=%s update=%s", run_id, node_name, update)
@@ -355,6 +375,7 @@ class WorkflowService:
             patch = ResumePatch.model_validate(result["editor_patch"])
             diff = build_diff(state["original_resume"], result["candidate_resume"], patch)
             write_json(run_dir, "final_diff.json", diff)
+            write_json(run_dir, "all_operations.json", patch.model_dump()["operations"])
             update_metadata(
                 run_dir,
                 status=result["status"],
@@ -381,6 +402,15 @@ class WorkflowService:
             logger.exception("compile graph failed run_id=%s", run_id)
             self._fail(run_dir, exc)
 
+    @staticmethod
+    def _merge_operations(
+        existing: list[dict[str, Any]], new_ops: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        by_path = {op["path"]: op for op in existing}
+        for op in new_ops:
+            by_path[op["path"]] = op
+        return list(by_path.values())
+
     def manual_edit(self, run_id: str, patch: ResumePatch) -> dict[str, Any]:
         run_dir = self.resolve_run(run_id)
         metadata = read_metadata(run_dir)
@@ -393,6 +423,14 @@ class WorkflowService:
         write_json(run_dir, "manual_edit.patch.json", patch.model_dump())
         write_yaml(run_dir, "candidate_resume.yaml", revised)
         write_json(run_dir, "validation.json", validation.model_dump())
+
+        existing_ops = read_json(run_dir, "all_operations.json") if (run_dir / "all_operations.json").exists() else []
+        merged_ops = self._merge_operations(existing_ops, patch.model_dump()["operations"])
+        write_json(run_dir, "all_operations.json", merged_ops)
+        combined_patch = ResumePatch.model_validate({"operations": merged_ops})
+        diff = build_diff(master, revised, combined_patch)
+        write_json(run_dir, "final_diff.json", diff)
+
         status = "WAITING_FINAL_APPROVAL" if validation.passed else "FAILED"
         return update_metadata(run_dir, status=status)
 
@@ -406,13 +444,13 @@ class WorkflowService:
             raise ResumeAgentError("Fact Validator 未通过，禁止导出")
         candidate = read_yaml(run_dir, "candidate_resume.yaml")
         target = write_target(run_dir, metadata["output_name"], candidate)
-        return update_metadata(run_dir, status="COMPLETED", target_file=target.name)
+        return update_metadata(run_dir, status="COMPLETED", target_file=target.name, stage="已批准导出")
 
     def reject_final(self, run_id: str) -> dict[str, Any]:
         run_dir = self.resolve_run(run_id)
         if read_metadata(run_dir)["status"] != "WAITING_FINAL_APPROVAL":
             raise ResumeAgentError("当前状态不能拒绝最终版本")
-        return update_metadata(run_dir, status="REJECTED")
+        return update_metadata(run_dir, status="REJECTED", stage="已拒绝")
 
     def restore_original(self, run_id: str) -> dict[str, Any]:
         run_dir = self.resolve_run(run_id)
@@ -423,22 +461,40 @@ class WorkflowService:
         write_yaml(run_dir, "candidate_resume.yaml", master)
         write_json(run_dir, "validation.json", validation.model_dump())
         write_json(run_dir, "final_diff.json", [])
+        write_json(run_dir, "all_operations.json", [])
         return read_metadata(run_dir)
 
     def get(self, run_id: str) -> dict[str, Any]:
-        return read_metadata(self.resolve_run(run_id))
+        metadata = read_metadata(self.resolve_run(run_id))
+        metadata["langsmith_trace_url"] = self.settings.langsmith_project_url or None
+        return metadata
 
     def get_diff(self, run_id: str) -> Any:
         return read_json(self.resolve_run(run_id), "final_diff.json")
 
-    def list_runs(self) -> list[dict[str, Any]]:
+    def update_notes(self, run_id: str, notes: str) -> dict[str, Any]:
+        return update_metadata(self.resolve_run(run_id), notes=notes)
+
+    def get_events(self, run_id: str) -> list[dict[str, Any]]:
+        return read_events(self.resolve_run(run_id))
+
+    def list_runs(self, page: int = 1, page_size: int | None = None) -> dict[str, Any]:
         if not self.runs_root.exists():
-            return []
-        results = []
-        for path in self.runs_root.iterdir():
-            if path.is_dir() and (path / "run.json").exists():
-                results.append(read_metadata(path))
-        return sorted(results, key=lambda item: item["created_at"], reverse=True)
+            results: list[dict[str, Any]] = []
+        else:
+            results = [
+                read_metadata(path)
+                for path in self.runs_root.iterdir()
+                if path.is_dir() and (path / "run.json").exists()
+            ]
+        results.sort(key=lambda item: item["created_at"], reverse=True)
+        total = len(results)
+        if page_size is None:
+            items = results
+        else:
+            start = (page - 1) * page_size
+            items = results[start : start + page_size]
+        return {"items": items, "total": total, "page": page, "page_size": page_size or total}
 
     @staticmethod
     def _fail(run_dir: Path, exc: Exception) -> None:

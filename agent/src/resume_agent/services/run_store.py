@@ -21,7 +21,13 @@ def safe_slug(value: str) -> str:
     return slug[:80]
 
 
-def create_run(jd_label: str, jd: str, master_bytes: bytes, root: Path = RUNS_ROOT) -> Path:
+def create_run(
+    jd_label: str,
+    jd: str,
+    master_bytes: bytes,
+    root: Path = RUNS_ROOT,
+    company: str | None = None,
+) -> Path:
     if not jd.strip():
         raise ResumeAgentError("JD 文本不能为空")
     run_id = f"run_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
@@ -31,6 +37,8 @@ def create_run(jd_label: str, jd: str, master_bytes: bytes, root: Path = RUNS_RO
     metadata = {
         "run_id": run_id,
         "jd_label": jd_label,
+        "company": company or None,
+        "notes": "",
         "output_name": f"{safe_slug(jd_label)}_resume.yaml",
         "master_sha256": hashlib.sha256(master_bytes).hexdigest(),
         "created_at": datetime.now(UTC).isoformat(),
@@ -39,6 +47,7 @@ def create_run(jd_label: str, jd: str, master_bytes: bytes, root: Path = RUNS_RO
     (run_dir / "run.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    append_event(run_dir, **metadata)
     return run_dir
 
 
@@ -57,6 +66,20 @@ def read_metadata(run_dir: Path) -> dict[str, Any]:
     return json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
 
 
+def append_event(run_dir: Path, **fields: Any) -> None:
+    event = {"timestamp": datetime.now(UTC).isoformat(), **fields}
+    with (run_dir / "events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def read_events(run_dir: Path) -> list[dict[str, Any]]:
+    events_path = run_dir / "events.jsonl"
+    if not events_path.exists():
+        return []
+    lines = events_path.read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if line.strip()]
+
+
 def update_metadata(run_dir: Path, **changes: Any) -> dict[str, Any]:
     metadata = read_metadata(run_dir)
     metadata.update(changes)
@@ -66,6 +89,7 @@ def update_metadata(run_dir: Path, **changes: Any) -> dict[str, Any]:
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     temporary.replace(run_dir / "run.json")
+    append_event(run_dir, **{**changes, "run_id": metadata["run_id"]})
     return metadata
 
 

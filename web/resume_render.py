@@ -60,7 +60,7 @@ def make_section_title(data):
     return _title
 
 
-def render_html(data, lang):
+def render_html(data, lang, css_override=None, show_language_toggle=True):
     env = Environment(
         loader=FileSystemLoader(str(ROOT / "templates")),
         autoescape=select_autoescape(["html", "j2"]),
@@ -68,7 +68,7 @@ def render_html(data, lang):
     env.filters["L"] = lambda node: localize(node, lang)
     env.globals["icon"] = icon
     env.globals["section_title"] = make_section_title(data)
-    css = Markup((ROOT / "styles" / "awesome-cv.css").read_text(encoding="utf-8"))
+    css = Markup(css_override if css_override is not None else (ROOT / "styles" / "awesome-cv.css").read_text(encoding="utf-8"))
     photo = data["meta"].get("photo")
     photo_exists = bool(photo) and (ROOT / photo).exists()
     tpl = env.get_template("resume.html.j2")
@@ -76,4 +76,5 @@ def render_html(data, lang):
         lang=lang, css=css, photo_exists=photo_exists,
         meta=data["meta"], sections=data["sections"],
         footer_more=data["meta"]["footer_more"],
+        show_language_toggle=show_language_toggle,
     )

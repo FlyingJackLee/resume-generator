@@ -1,9 +1,10 @@
-import { FilePenLine, FileSearch, FileText, PlayCircle, Settings } from 'lucide-react'
+import { FilePenLine, FileSearch, FileText, Palette, PlayCircle, Settings } from 'lucide-react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { useTranslation } from './i18n/LanguageContext'
 import NewRunPage from './pages/NewRunPage'
 import ResumeViewerPage from './pages/ResumeViewerPage'
 import ResumeEditorPage from './pages/ResumeEditorPage'
+import TemplatesPage from './pages/TemplatesPage'
 import RunDetailPage from './pages/RunDetailPage'
 import RunsListPage from './pages/RunsListPage'
 
@@ -33,6 +34,10 @@ export default function App() {
           <NavLink to="/viewer?token=master">
             <FileText size={16} />
             {t('nav.masterResume')}
+          </NavLink>
+          <NavLink to="/templates">
+            <Palette size={16} />
+            {t('nav.templates')}
           </NavLink>
         </nav>
         <div className="sidebar-section-label">{t('nav.agentSection')}</div>
@@ -64,6 +69,7 @@ export default function App() {
           <Route path="/runs/:runId" element={<RunDetailPage />} />
           <Route path="/viewer" element={<ResumeViewerPage />} />
           <Route path="/editor" element={<ResumeEditorPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
         </Routes>
       </main>
     </div>

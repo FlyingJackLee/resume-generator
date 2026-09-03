@@ -1,65 +1,114 @@
-# resume-generator
+# Resume Generator
 
-简历生成项目，Web 简历与后续 Agent 能力分开维护。
+> A local-first, bilingual resume workspace for maintaining a baseline resume, tailoring fact-safe versions to job descriptions, and exporting polished A4 HTML/PDF documents.
 
-## 项目结构
+Resume Generator combines a structured YAML resume with an AI-assisted review workflow. It is designed for a single user: your resume data stays on your machine, while every AI-generated change remains traceable to the baseline facts.
 
-- `web/`：当前可用的双语 Web/PDF 简历生成器
-- `agent/`：预留给后续基于正式 spec 开发的简历 Agent
-- `backup/`：停止维护的旧版 LaTeX 工程归档
+## Highlights
 
-`web/data/resume.yaml` 是唯一 Master Resume。Web 构建器直接读取它；Agent 只读取它，
-并在内存工作副本中生成稳定 ID、事实引用和目标版本。所有目标版本只能写入
-`agent/data/runs/<run_id>/`，不得覆盖 Master Resume。
+- **Baseline resume workspace** — edit a single baseline resume in the browser, publish deliberately, and roll back to any published version.
+- **Bilingual by default** — maintain Chinese and English content together; preview and export either language.
+- **Fact-safe JD tailoring** — analyze a job description, review an AI rewrite strategy, validate every patch against source facts, then approve the final result.
+- **Global resume templates** — switch between built-in templates or import a CSS-only template package. The selected template applies consistently to every preview and export.
+- **Portable exports** — download A4 HTML or PDF output, plus the current published `resume.yaml`.
+- **Local-first** — no authentication service, database, or remote storage is required.
 
-## 环境
+## Workflow
 
-```bash
-uv sync
-uv run playwright install chromium
-uv run pytest
+```text
+Baseline Resume ── edit draft ── publish ──> web/data/resume.yaml
+       │                                      │
+       ├── version history / rollback          └── source of truth
+       │
+       └── ATS JD Matching ── strategy gate ── fact validation ── final version
+                                              │
+                                              └── HTML / PDF export
 ```
 
-React 操作台（`agent/frontend/`）额外需要 Node.js 和 `pnpm`（`corepack enable` 或
-`npm install -g pnpm` 都可以装）；`web/` 不需要 Node。
+## Quick start
 
-Web 项目的使用方式见 [`web/README.md`](web/README.md)，Agent 的当前实现范围见
-[`agent/README.md`](agent/README.md)，React 操作台见
-[`agent/frontend/README.md`](agent/frontend/README.md)。
+### Prerequisites
 
-## 启动 Agent（本地试跑）
+- Python 3.12+
+- Node.js 20+ and `pnpm`
+- Chromium for PDF generation
 
-首次运行需要装依赖、填 API Key：
+### Install
 
 ```bash
 cp .env.example .env
-# 编辑 .env，至少填写 RESUME_AGENT_API_KEY
+# Edit .env and set RESUME_AGENT_API_KEY when using ATS JD matching.
 uv sync
-cd agent/frontend && pnpm install && cd ../..
+uv run playwright install chromium
+pnpm --dir agent/frontend install
 ```
 
-之后一键启动前后端（同一个终端，`Ctrl+C` 一次性关闭两个进程）：
+### Run locally
 
 ```bash
 ./dev.sh
 ```
 
-后端 <http://127.0.0.1:8010>（纯 API，不再提供网页）、前端 <http://localhost:5173>
-（Vite 会把 API 请求代理到 8010，不用改配置）。
+Open <http://localhost:5173>. The API runs at <http://127.0.0.1:8010>.
 
-需要分开跑（比如只测后端接口）时，两个进程也可以照旧各自起：
+If a previous local process already owns a development port:
 
 ```bash
-uv run uvicorn resume_agent.api.main:app --app-dir agent/src --host 127.0.0.1 --port 8010
-# 另开一个终端
-cd agent/frontend && pnpm dev
+lsof -ti:8010,5173 | xargs kill
 ```
 
-> 如果 8010/5173 端口已被占用（比如 AI 助手验证功能时临时起的服务忘了关），先释放端口再自己起：
->
-> ```bash
-> lsof -ti:8010,5173 | xargs kill
-> ```
+## Core concepts
 
-详细说明见 [`agent/README.md`](agent/README.md) 和 [`agent/frontend/README.md`](agent/frontend/README.md)；
-开发进度和分期规划记在 [`FRONTEND_ROADMAP.md`](FRONTEND_ROADMAP.md) 里。
+| Concept | Description |
+| --- | --- |
+| **Baseline Resume** | The sole current source of truth at `web/data/resume.yaml`. Browser edits become effective only after an explicit publish action. |
+| **Editing draft** | A single local draft used by the baseline editor. It autosaves independently and detects local YAML changes. |
+| **Run** | One ATS JD-matching workflow for a target role. Artifacts are isolated under `agent/data/runs/<run_id>/`. |
+| **Fact validation** | A guardrail that verifies target-resume changes against stable facts derived from the baseline. |
+| **Template** | A global, presentation-only theme. It never changes resume data or the A4 export contract. |
+
+## Resume templates
+
+Three built-in themes are included: Classic, Modern Minimal, and Professional Sidebar. Select one from **Templates** and it applies everywhere.
+
+Custom templates are local ZIP packages containing `manifest.json`, `theme.css`, and optional local assets. They may style the fixed resume DOM but cannot execute code, import remote resources, add fields, or change paper settings.
+
+Download the complete authoring specification from the Templates page, or read [Template Package Specification](docs/template-package-spec.md).
+
+## Project structure
+
+```text
+agent/
+  src/resume_agent/       # FastAPI API, workflow, validation, template services
+  frontend/               # React + TypeScript workspace
+  data/runs/              # Local, ignored workflow artifacts
+web/
+  data/resume.yaml        # Published baseline resume
+  templates/              # Fixed resume HTML structure
+  styles/                 # Base A4 resume styles
+docs/                     # Public project documentation
+```
+
+Local archives, imported templates, logs, generated runs, `.env`, and PDF build output are intentionally excluded from version control.
+
+## Development
+
+```bash
+uv run pytest -q
+pnpm --dir agent/frontend build
+```
+
+## Data and security notes
+
+- The project is designed for personal local use; do not expose it directly to the public internet.
+- Keep `.env` private. It is ignored by Git.
+- Imported templates are constrained to CSS and local assets; remote resources and `@import` are rejected.
+- A published baseline is versioned before replacement, so it can be restored from the editor.
+
+## Version
+
+Current development version: **1.2.0**.
+
+## License
+
+No license has been selected yet. Add one before redistributing or accepting external contributions.

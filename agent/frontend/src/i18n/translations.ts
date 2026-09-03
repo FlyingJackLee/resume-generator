@@ -5,6 +5,7 @@ export interface Translations {
     agentSection: string
     onlineSection: string
     onlineEditor: string
+    templates: string
     resumeViewer: string
     masterResumeSection: string
     masterResume: string
@@ -181,9 +182,10 @@ const zh: Translations = {
     agentSection: '智能优化',
     onlineSection: '在线简历',
     onlineEditor: '修改基线版本',
+    templates: '模板管理',
     resumeViewer: '所有版本',
     masterResumeSection: 'MASTER RESUME',
-    masterResume: 'Master Resume',
+    masterResume: '基线简历',
     sidebarUser: 'Resume Agent',
   },
   runsList: {
@@ -362,6 +364,7 @@ const en: Translations = {
     agentSection: 'AGENT WORKBENCH',
     onlineSection: 'ONLINE RESUME',
     onlineEditor: 'Resume Editor',
+    templates: 'Templates',
     resumeViewer: 'Resume Viewer',
     masterResumeSection: 'MASTER RESUME',
     masterResume: 'Master Resume',

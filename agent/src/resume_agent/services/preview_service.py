@@ -6,6 +6,7 @@ from typing import Any
 
 from resume_agent.errors import ResumeAgentError
 from resume_agent.paths import MASTER_RESUME_PATH, PROJECT_ROOT
+from resume_agent.services.template_service import TemplateService
 
 _WEB_DIR = PROJECT_ROOT / "web"
 if str(_WEB_DIR) not in sys.path:
@@ -17,7 +18,11 @@ from resume_render import load_data, render_html  # noqa: E402
 def _render(path: Path, lang: str) -> str:
     if lang not in ("zh", "en"):
         raise ResumeAgentError("lang 必须是 zh 或 en")
-    return render_html(load_data(path=path), lang)
+    return render_html(
+        load_data(path=path), lang,
+        css_override=TemplateService().css(asset_prefix="/api/v1/resume/template-assets/"),
+        show_language_toggle=False,
+    )
 
 
 def render_master_preview(lang: str, master_path: Path = MASTER_RESUME_PATH) -> str:

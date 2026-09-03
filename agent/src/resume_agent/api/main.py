@@ -5,12 +5,14 @@ import json
 import logging
 from contextlib import asynccontextmanager
 from functools import lru_cache
+from pathlib import Path
 from threading import Thread
 from typing import Annotated, Callable
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from resume_agent.config import get_settings
@@ -24,6 +26,8 @@ from resume_agent.services.preview_service import render_master_preview, render_
 from resume_agent.services.resume_labels import path_label as _path_label
 from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
+from resume_agent.services.template_service import TemplateService
+from resume_agent.paths import TEMPLATES_ROOT
 
 
 logger = logging.getLogger(__name__)
@@ -78,6 +82,21 @@ class EditorPublishRequest(BaseModel):
     message: str = Field(default="发布版本", min_length=1, max_length=200)
 
 
+class ActiveTemplateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    template_id: str
+
+
+class TemplateNameRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+
+
+class CopyTemplateRequest(TemplateNameRequest):
+    source_id: str
+    template_id: str
+
+
 @lru_cache
 def default_service() -> WorkflowService:
     settings = get_settings()
@@ -124,6 +143,10 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    TEMPLATES_ROOT.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/api/v1/resume/template-assets", StaticFiles(directory=str(TEMPLATES_ROOT)), name="template-assets"
+    )
     if service_factory is not None:
         async def override_workflow() -> WorkflowService:
             return service_factory()
@@ -143,6 +166,48 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
     @app.post("/api/v1/resume/editor-drafts", status_code=201)
     async def create_editor_draft(payload: EditorDraftRequest, workflow: ServiceDep):
         return workflow.get_or_create_editor_draft(payload.label)
+
+    @app.get("/api/v1/resume/templates")
+    async def list_templates():
+        return TemplateService().list()
+
+    @app.post("/api/v1/resume/templates/active")
+    async def set_active_template(payload: ActiveTemplateRequest):
+        return TemplateService().set_active(payload.template_id)
+
+    @app.post("/api/v1/resume/templates/import", status_code=201)
+    async def import_template(file: UploadFile = File(...)):
+        if not file.filename or not file.filename.endswith(".zip"):
+            raise ResumeAgentError("请上传 ZIP 模板包")
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".zip") as temporary:
+            temporary.write(await file.read())
+            temporary.flush()
+            return TemplateService().import_zip(Path(temporary.name))
+
+    @app.delete("/api/v1/resume/templates/{template_id}", status_code=204)
+    async def delete_template(template_id: str):
+        TemplateService().delete(template_id)
+
+    @app.patch("/api/v1/resume/templates/{template_id}")
+    async def rename_template(template_id: str, payload: TemplateNameRequest):
+        return TemplateService().rename(template_id, payload.name)
+
+    @app.post("/api/v1/resume/templates/copy", status_code=201)
+    async def copy_template(payload: CopyTemplateRequest):
+        return TemplateService().copy(payload.source_id, payload.template_id, payload.name)
+
+    @app.get("/api/v1/resume/templates/{template_id}/export")
+    async def export_template(template_id: str):
+        return StreamingResponse(
+            iter([TemplateService().export_zip(template_id)]),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{template_id}.zip"'},
+        )
+
+    @app.get("/api/v1/resume/templates/specification")
+    async def template_specification():
+        return FileResponse(PROJECT_ROOT / "docs" / "template-package-spec.md", filename="resume-template-package-spec.md", media_type="text/markdown")
 
     @app.get("/api/v1/resume/editor-drafts/{run_id}")
     async def get_editor_draft(run_id: str, workflow: ServiceDep):
@@ -194,6 +259,11 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         pdf_path = run_dir / f"resume.{lang}.pdf"
         export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
         return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/download/original-yaml")
+    async def download_original_yaml(run_id: str, workflow: ServiceDep):
+        workflow.get_editor_draft(run_id)  # validates this is the singleton editor draft
+        return FileResponse(workflow.master_path, filename="resume.yaml", media_type="application/x-yaml")
 
     @app.get("/api/v1/resume/runs")
     async def list_runs(workflow: ServiceDep, page: int = 1, page_size: int = 20):

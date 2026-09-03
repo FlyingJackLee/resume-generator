@@ -120,6 +120,15 @@ export function resolveEditorExternalChange(runId: string, action: 'reload' | 'k
 export function publishEditorDraft(runId: string, message: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/publish`, { method: 'POST', body: JSON.stringify({ message }) }) }
 export function rollbackEditorVersion(runId: string, versionId: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/rollback/${versionId}`, { method: 'POST' }) }
 export function editorDownloadUrl(runId: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string { return `/api/v1/resume/editor-drafts/${runId}/download/${format}/${lang}` }
+export function originalYamlDownloadUrl(runId: string): string { return `/api/v1/resume/editor-drafts/${runId}/download/original-yaml` }
+
+export interface ResumeTemplate { id: string; name: string; description: string; builtin: boolean; active: boolean; unsupported: string[] }
+export function listTemplates(): Promise<ResumeTemplate[]> { return request('/api/v1/resume/templates') }
+export function setActiveTemplate(templateId: string): Promise<ResumeTemplate> { return request('/api/v1/resume/templates/active', { method: 'POST', body: JSON.stringify({ template_id: templateId }) }) }
+export function deleteTemplate(templateId: string): Promise<void> { return fetch(`/api/v1/resume/templates/${templateId}`, { method: 'DELETE' }).then((r) => { if (!r.ok) throw new Error('删除模板失败') }) }
+export function renameTemplate(templateId: string, name: string): Promise<ResumeTemplate> { return request(`/api/v1/resume/templates/${templateId}`, { method: 'PATCH', body: JSON.stringify({ name }) }) }
+export function copyTemplate(sourceId: string, templateId: string, name: string): Promise<ResumeTemplate> { return request('/api/v1/resume/templates/copy', { method: 'POST', body: JSON.stringify({ source_id: sourceId, template_id: templateId, name }) }) }
+export async function importTemplate(file: File): Promise<ResumeTemplate> { const form = new FormData(); form.append('file', file); const response = await fetch('/api/v1/resume/templates/import', { method: 'POST', body: form }); if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.detail ?? '导入模板失败') } return response.json() as Promise<ResumeTemplate> }
 
 export function updateNotes(runId: string, notes: string): Promise<RunMetadata> {
   return request(`${BASE}/${runId}/notes`, {

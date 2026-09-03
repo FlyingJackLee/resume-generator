@@ -31,7 +31,3 @@
 - `templates/resume.html.j2` 排版
 - `styles/awesome-cv.css` 外观
 - `build.py` 构建脚本
-
-## LaTeX 归档
-
-旧版 LaTeX 工程已停止维护，完整文件保存在 `../backup/` 中。

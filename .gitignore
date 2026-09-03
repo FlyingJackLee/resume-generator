@@ -21,6 +21,10 @@ htmlcov/
 /agent/data/runs/*
 !/agent/data/runs/.gitkeep
 /agent/data/logs/
+/agent/data/templates/
+
+# Local-only archives and planning material
+/local-archive/
 
 # Editors and operating systems
 .idea/

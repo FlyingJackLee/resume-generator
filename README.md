@@ -43,6 +43,10 @@ uv run playwright install chromium
 pnpm --dir agent/frontend install
 ```
 
+On its first start, the application automatically copies `web/data/resume.sample.yaml`
+to the ignored local file `web/data/resume.yaml`. Replace that generated file with your
+own bilingual resume; it is never committed to Git.
+
 ### Run locally
 
 ```bash

@@ -4,6 +4,7 @@ from fakes import HappyProvider
 from resume_agent.config import Settings
 from resume_agent.paths import MASTER_RESUME_PATH
 from resume_agent.services.master_resume import collect_facts, load_master_resume, prepare_working_resume
+from resume_agent.services.master_resume import ensure_master_resume
 from resume_agent.services.workflow_service import WorkflowService
 
 
@@ -34,6 +35,14 @@ def test_all_editable_text_has_stable_id_and_support():
                 for item in entry.get(collection, []):
                     assert item["id"]
                     assert item["supported_by"]
+
+
+def test_missing_master_is_created_from_sample(tmp_path):
+    sample = tmp_path / "resume.sample.yaml"
+    sample.write_text("meta: {}\nsections: []\n", encoding="utf-8")
+    master = tmp_path / "resume.yaml"
+    assert ensure_master_resume(master, sample) == master
+    assert master.read_text(encoding="utf-8") == sample.read_text(encoding="utf-8")
 
 
 def test_editor_draft_publishes_only_after_confirmation_and_can_roll_back(tmp_path):

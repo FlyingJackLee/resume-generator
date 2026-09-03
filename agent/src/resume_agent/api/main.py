@@ -21,7 +21,7 @@ from resume_agent.logging_config import configure_logging
 from resume_agent.models import ManualEditRequest, RewriteStrategy, StrategyDecision
 from resume_agent.providers import OpenAICompatibleProvider
 from resume_agent.services.catalog import editable_catalog
-from resume_agent.services.master_resume import collect_facts
+from resume_agent.services.master_resume import collect_facts, ensure_master_resume
 from resume_agent.services.preview_service import render_master_preview, render_run_preview
 from resume_agent.services.resume_labels import path_label as _path_label
 from resume_agent.services.run_store import read_json, read_yaml
@@ -130,6 +130,7 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        ensure_master_resume(current_workflow().master_path)
         task = asyncio.create_task(auto_approve_loop())
         try:
             yield

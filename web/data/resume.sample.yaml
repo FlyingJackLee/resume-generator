@@ -1,0 +1,75 @@
+meta:
+  name: { zh: "你的姓名", en: "Your Name" }
+  name_split_zh: 1
+  position: { zh: "软件工程师 · 全栈开发", en: "Software Engineer · Full Stack" }
+  color: "#2563EB"
+  contacts:
+    mobile: "+86 138 0000 0000"
+    email: "hello@example.com"
+    homepage: "example.com"
+    github: "github-user"
+    wechat: "wechat-id"
+  photo: null
+  footer_label: { zh: "你的姓名 · 简历", en: "Your Name · Résumé" }
+  footer_more:
+    text: { zh: "更多信息请访问：", en: "More information: " }
+    url: "https://example.com"
+
+section_highlight_latin: 3
+section_highlight_cjk: 1
+
+sections:
+  - type: paragraph
+    title: { zh: "个人介绍", en: "Introduction" }
+    body:
+      zh: "具备软件工程与产品交付经验，专注于构建可靠、可维护的数字化产品。"
+      en: "Software engineer focused on building reliable, maintainable digital products."
+
+  - type: skills
+    title: { zh: "技术栈", en: "Skills" }
+    rows:
+      - label: { zh: "后端", en: "Backend" }
+        items: { zh: "Python, FastAPI, PostgreSQL", en: "Python, FastAPI, PostgreSQL" }
+      - label: { zh: "前端", en: "Frontend" }
+        items: { zh: "TypeScript, React", en: "TypeScript, React" }
+
+  - type: education
+    title: { zh: "教育经历", en: "Education" }
+    entries:
+      - degree: { zh: "计算机科学 学士", en: "BSc in Computer Science" }
+        org: { zh: "示例大学", en: "Example University" }
+        location: { zh: "上海，中国", en: "Shanghai, China" }
+        date: { zh: "2016年9月 - 2020年6月", en: "September 2016 – June 2020" }
+
+  - type: entries
+    org_first: true
+    title: { zh: "工作经历", en: "Experience" }
+    entries:
+      - title: { zh: "高级软件工程师", en: "Senior Software Engineer" }
+        org: { zh: "示例科技有限公司", en: "Example Technology Co., Ltd." }
+        location: { zh: "上海，中国", en: "Shanghai, China" }
+        date: { zh: "2022年1月 - 至今", en: "January 2022 – Present" }
+        items:
+          - zh: "负责核心产品服务的设计与研发，持续提升系统可靠性和交付效率。"
+            en: "Designed and delivered core product services, improving reliability and delivery speed."
+          - zh: "与产品及跨职能团队协作，将业务需求落地为可维护的软件能力。"
+            en: "Partnered with product and cross-functional teams to turn requirements into maintainable software."
+
+  - type: entries
+    title: { zh: "项目经历", en: "Projects" }
+    summary_label: { zh: "项目简介：", en: "Overview:" }
+    responsibility_label: { zh: "个人职责：", en: "Responsibilities:" }
+    entries:
+      - title: { zh: "智能工作流平台", en: "Intelligent Workflow Platform" }
+        org: { zh: "系统架构与核心研发", en: "Architecture & Core Engineering" }
+        location: { zh: "2024年", en: "2024" }
+        date: { zh: "", en: "" }
+        link: { url: "https://github.com/example/project", label: "GitHub: example/project" }
+        summary:
+          zh: "面向团队协作的自动化工作流平台，提供任务编排、知识检索和可观测能力。"
+          en: "An automation platform for teams, providing orchestration, knowledge retrieval and observability."
+        responsibilities:
+          - zh: "设计服务架构与核心工作流，保证模块化、可测试和可扩展。"
+            en: "Designed the service architecture and core workflows for modularity, testability and scale."
+          - zh: "实现前后端协作体验与交付流程，支持稳定迭代。"
+            en: "Delivered the full-stack collaboration experience and a stable release workflow."

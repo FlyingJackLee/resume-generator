@@ -1,8 +1,9 @@
-import { FileSearch, FileText, PlayCircle, Settings } from 'lucide-react'
+import { FilePenLine, FileSearch, FileText, PlayCircle, Settings } from 'lucide-react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { useTranslation } from './i18n/LanguageContext'
 import NewRunPage from './pages/NewRunPage'
 import ResumeViewerPage from './pages/ResumeViewerPage'
+import ResumeEditorPage from './pages/ResumeEditorPage'
 import RunDetailPage from './pages/RunDetailPage'
 import RunsListPage from './pages/RunsListPage'
 
@@ -16,10 +17,11 @@ export default function App() {
           <FileSearch size={22} />
           {t('nav.logo')}
         </div>
+        <div className="sidebar-section-label">{t('nav.onlineSection')}</div>
         <nav className="sidebar-nav">
-          <NavLink to="/" end>
-            <PlayCircle size={16} />
-            {t('nav.runs')}
+          <NavLink to="/editor">
+            <FilePenLine size={16} />
+            {t('nav.onlineEditor')}
           </NavLink>
           <NavLink to="/viewer">
             <FileText size={16} />
@@ -31,6 +33,13 @@ export default function App() {
           <NavLink to="/viewer?token=master">
             <FileText size={16} />
             {t('nav.masterResume')}
+          </NavLink>
+        </nav>
+        <div className="sidebar-section-label">{t('nav.agentSection')}</div>
+        <nav className="sidebar-nav">
+          <NavLink to="/" end>
+            <PlayCircle size={16} />
+            {t('nav.runs')}
           </NavLink>
         </nav>
         <div className="sidebar-spacer" />
@@ -54,6 +63,7 @@ export default function App() {
           <Route path="/runs/new" element={<NewRunPage />} />
           <Route path="/runs/:runId" element={<RunDetailPage />} />
           <Route path="/viewer" element={<ResumeViewerPage />} />
+          <Route path="/editor" element={<ResumeEditorPage />} />
         </Routes>
       </main>
     </div>

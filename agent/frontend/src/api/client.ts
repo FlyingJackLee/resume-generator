@@ -95,6 +95,32 @@ export function createRun(payload: {
   return request(BASE, { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export function createEditorDraft(label = '在线编辑草稿'): Promise<RunMetadata> {
+  return request('/api/v1/resume/editor-drafts', {
+    method: 'POST',
+    body: JSON.stringify({ label }),
+  })
+}
+
+export function getEditorDraft(runId: string): Promise<Record<string, unknown>> {
+  return request(`/api/v1/resume/editor-drafts/${runId}`)
+}
+
+export function updateEditorDraft(runId: string, resume: Record<string, unknown>): Promise<RunMetadata> {
+  return request(`/api/v1/resume/editor-drafts/${runId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ resume }),
+  })
+}
+
+export interface EditorVersion { id: string; filename: string; message: string; created_at: string }
+export function getEditorVersions(runId: string): Promise<EditorVersion[]> { return request(`/api/v1/resume/editor-drafts/${runId}/versions`) }
+export function getEditorExternalChange(runId: string): Promise<{ changed: boolean }> { return request(`/api/v1/resume/editor-drafts/${runId}/external-change`) }
+export function resolveEditorExternalChange(runId: string, action: 'reload' | 'keep'): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/external-change`, { method: 'POST', body: JSON.stringify({ action }) }) }
+export function publishEditorDraft(runId: string, message: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/publish`, { method: 'POST', body: JSON.stringify({ message }) }) }
+export function rollbackEditorVersion(runId: string, versionId: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/rollback/${versionId}`, { method: 'POST' }) }
+export function editorDownloadUrl(runId: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string { return `/api/v1/resume/editor-drafts/${runId}/download/${format}/${lang}` }
+
 export function updateNotes(runId: string, notes: string): Promise<RunMetadata> {
   return request(`${BASE}/${runId}/notes`, {
     method: 'POST',

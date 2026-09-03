@@ -2,6 +2,9 @@ export interface Translations {
   nav: {
     logo: string
     runs: string
+    agentSection: string
+    onlineSection: string
+    onlineEditor: string
     resumeViewer: string
     masterResumeSection: string
     masterResume: string
@@ -174,8 +177,11 @@ export interface Translations {
 const zh: Translations = {
   nav: {
     logo: 'Resume Agent',
-    runs: 'Runs',
-    resumeViewer: '在线查看',
+    runs: 'ATS JD 匹配',
+    agentSection: '智能优化',
+    onlineSection: '在线简历',
+    onlineEditor: '修改基线版本',
+    resumeViewer: '所有版本',
     masterResumeSection: 'MASTER RESUME',
     masterResume: 'Master Resume',
     sidebarUser: 'Resume Agent',
@@ -341,8 +347,8 @@ const zh: Translations = {
     validationError: '替换操作需要填写中英文内容、修改理由，并至少选择一条支撑事实。',
   },
   resumeViewer: {
-    title: '在线查看',
-    subtitle: '预览生成的简历，切换版本或语言查看不同的产出。',
+    title: '所有版本',
+    subtitle: '查看基线 Master Resume 与已完成的目标简历版本。',
     version: '版本',
     masterResumeOption: 'Master Resume（基准）',
     pendingApproval: '（待批准，预览候选版本）',
@@ -353,6 +359,9 @@ const en: Translations = {
   nav: {
     logo: 'Resume Agent',
     runs: 'Runs',
+    agentSection: 'AGENT WORKBENCH',
+    onlineSection: 'ONLINE RESUME',
+    onlineEditor: 'Resume Editor',
     resumeViewer: 'Resume Viewer',
     masterResumeSection: 'MASTER RESUME',
     masterResume: 'Master Resume',

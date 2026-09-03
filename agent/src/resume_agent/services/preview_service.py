@@ -25,6 +25,10 @@ def render_master_preview(lang: str, master_path: Path = MASTER_RESUME_PATH) -> 
 
 
 def render_run_preview(run_dir: Path, metadata: dict[str, Any], lang: str) -> str:
+    if metadata.get("editor_draft"):
+        draft_path = run_dir / "editor_resume.yaml"
+        if draft_path.exists():
+            return _render(draft_path, lang)
     target_name = metadata.get("target_file")
     if target_name and (run_dir / target_name).exists():
         return _render(run_dir / target_name, lang)

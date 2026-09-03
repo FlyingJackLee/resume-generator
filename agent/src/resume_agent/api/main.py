@@ -10,7 +10,7 @@ from typing import Annotated, Callable
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from resume_agent.config import get_settings
@@ -56,6 +56,26 @@ class CreateRunRequest(BaseModel):
 class NotesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     notes: str = Field(default="", max_length=20_000)
+
+
+class EditorDraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    label: str = Field(default="在线编辑草稿", min_length=1, max_length=120)
+
+
+class EditorDraftUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    resume: dict
+
+
+class EditorConflictRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str
+
+
+class EditorPublishRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    message: str = Field(default="发布版本", min_length=1, max_length=200)
 
 
 @lru_cache
@@ -119,6 +139,61 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         metadata = workflow.create(payload.jd_label, payload.job_description, payload.company)
         launch(workflow.analyze, metadata["run_id"])
         return metadata
+
+    @app.post("/api/v1/resume/editor-drafts", status_code=201)
+    async def create_editor_draft(payload: EditorDraftRequest, workflow: ServiceDep):
+        return workflow.get_or_create_editor_draft(payload.label)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}")
+    async def get_editor_draft(run_id: str, workflow: ServiceDep):
+        return workflow.get_editor_draft(run_id)
+
+    @app.put("/api/v1/resume/editor-drafts/{run_id}")
+    async def update_editor_draft(
+        run_id: str, payload: EditorDraftUpdateRequest, workflow: ServiceDep
+    ):
+        return workflow.update_editor_draft(run_id, payload.resume)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/versions")
+    async def editor_versions(run_id: str, workflow: ServiceDep):
+        return workflow.editor_versions(run_id)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/external-change")
+    async def editor_external_change(run_id: str, workflow: ServiceDep):
+        return workflow.editor_external_change(run_id)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/external-change")
+    async def resolve_editor_external_change(
+        run_id: str, payload: EditorConflictRequest, workflow: ServiceDep
+    ):
+        return workflow.resolve_editor_external_change(run_id, payload.action)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/publish")
+    async def publish_editor_draft(
+        run_id: str, payload: EditorPublishRequest, workflow: ServiceDep
+    ):
+        return workflow.publish_editor_draft(run_id, payload.message)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/rollback/{version_id}")
+    async def rollback_editor_version(run_id: str, version_id: str, workflow: ServiceDep):
+        return workflow.rollback_editor_version(run_id, version_id)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/download/{format}/{lang}")
+    async def download_editor_draft(run_id: str, format: str, lang: str, workflow: ServiceDep):
+        if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
+            raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
+        run_dir = workflow.resolve_run(run_id)
+        resume = workflow.get_editor_draft(run_id)
+        from resume_agent.services.preview_service import _render
+        html_path = run_dir / f"resume.{lang}.html"
+        html_path.write_text(_render(run_dir / "editor_resume.yaml", lang), encoding="utf-8")
+        if format == "html":
+            return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
+        from resume_render import localize
+        from build import export_pdf
+        pdf_path = run_dir / f"resume.{lang}.pdf"
+        export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
 
     @app.get("/api/v1/resume/runs")
     async def list_runs(workflow: ServiceDep, page: int = 1, page_size: int = 20):

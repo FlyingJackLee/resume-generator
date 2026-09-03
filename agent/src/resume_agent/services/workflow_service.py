@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import traceback
 import logging
+import hashlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -87,6 +88,142 @@ class WorkflowService:
         working = prepare_working_resume(load_master_resume(self.master_path))
         write_yaml(run_dir, "input_resume.yaml", working)
         return update_metadata(run_dir, status="ANALYZING")
+
+    def _editor_draft_dir(self) -> Path | None:
+        if not self.runs_root.exists():
+            return None
+        drafts = [
+            path for path in self.runs_root.iterdir()
+            if path.is_dir() and (path / "run.json").exists()
+            and read_metadata(path).get("editor_draft")
+        ]
+        return max(drafts, key=lambda path: read_metadata(path).get("created_at", ""), default=None)
+
+    def get_or_create_editor_draft(self, label: str = "在线编辑草稿") -> dict[str, Any]:
+        existing = self._editor_draft_dir()
+        if existing:
+            return read_metadata(existing)
+        master_bytes = self.master_path.read_bytes()
+        run_dir = create_run(
+            label,
+            "用于在线编辑的个人简历草稿。",
+            master_bytes,
+            root=self.runs_root,
+        )
+        write_yaml(run_dir, "editor_resume.yaml", load_master_resume(self.master_path))
+        metadata = update_metadata(
+            run_dir,
+            status="COMPLETED",
+            stage="在线编辑草稿",
+            editor_draft=True,
+            draft_base_sha256=hashlib.sha256(master_bytes).hexdigest(),
+        )
+        self._append_editor_version(run_dir, load_master_resume(self.master_path), "初始版本")
+        return metadata
+
+    # Backwards-compatible name while callers migrate to the singleton draft API.
+    create_editor_draft = get_or_create_editor_draft
+
+    def _versions_path(self, run_dir: Path) -> Path:
+        return run_dir / "editor_versions.json"
+
+    def _versions(self, run_dir: Path) -> list[dict[str, Any]]:
+        return read_json(run_dir, "editor_versions.json") if self._versions_path(run_dir).exists() else []
+
+    def _append_editor_version(self, run_dir: Path, resume: dict[str, Any], message: str) -> dict[str, Any]:
+        versions = self._versions(run_dir)
+        version_id = f"v{len(versions) + 1:03d}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+        filename = f"editor_version_{version_id}.yaml"
+        write_yaml(run_dir, filename, resume)
+        version = {
+            "id": version_id,
+            "filename": filename,
+            "message": message,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+        versions.append(version)
+        write_json(run_dir, "editor_versions.json", versions)
+        return version
+
+    def get_editor_draft(self, run_id: str) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        if not read_metadata(run_dir).get("editor_draft"):
+            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        return read_yaml(run_dir, "editor_resume.yaml")
+
+    def update_editor_draft(self, run_id: str, resume: dict[str, Any]) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        if not read_metadata(run_dir).get("editor_draft"):
+            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        if not isinstance(resume.get("meta"), dict) or not isinstance(resume.get("sections"), list):
+            raise ResumeAgentError("简历必须包含 meta 对象和 sections 数组")
+        # Render before committing so a malformed edit never replaces the last usable draft.
+        from .preview_service import _render
+
+        candidate = run_dir / "editor_resume.preview.yaml"
+        write_yaml(run_dir, candidate.name, resume)
+        try:
+            _render(candidate, "zh")
+            _render(candidate, "en")
+            candidate.replace(run_dir / "editor_resume.yaml")
+        finally:
+            if candidate.exists():
+                candidate.unlink()
+        return update_metadata(run_dir, stage="在线编辑草稿", editor_draft=True)
+
+    def editor_versions(self, run_id: str) -> list[dict[str, Any]]:
+        run_dir = self.resolve_run(run_id)
+        if not read_metadata(run_dir).get("editor_draft"):
+            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        return self._versions(run_dir)
+
+    def editor_external_change(self, run_id: str) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        metadata = read_metadata(run_dir)
+        if not metadata.get("editor_draft"):
+            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        current_sha = hashlib.sha256(self.master_path.read_bytes()).hexdigest()
+        return {"changed": current_sha != metadata.get("draft_base_sha256"), "master_sha256": current_sha}
+
+    def resolve_editor_external_change(self, run_id: str, action: str) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        if action not in {"reload", "keep"}:
+            raise ResumeAgentError("action 必须是 reload 或 keep")
+        master_bytes = self.master_path.read_bytes()
+        if action == "reload":
+            write_yaml(run_dir, "editor_resume.yaml", load_master_resume(self.master_path))
+        return update_metadata(run_dir, draft_base_sha256=hashlib.sha256(master_bytes).hexdigest())
+
+    def publish_editor_draft(self, run_id: str, message: str = "发布版本") -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        if not read_metadata(run_dir).get("editor_draft"):
+            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        resume = read_yaml(run_dir, "editor_resume.yaml")
+        # Verify both language versions before making the one allowed Master mutation.
+        from .preview_service import _render
+        _render(run_dir / "editor_resume.yaml", "zh")
+        _render(run_dir / "editor_resume.yaml", "en")
+        self._append_editor_version(run_dir, resume, message)
+        temp = self.master_path.with_suffix(".yaml.publish.tmp")
+        # write_yaml intentionally only permits run artifacts, so use an atomic write here.
+        import yaml
+        temp.write_text(yaml.safe_dump(resume, allow_unicode=True, sort_keys=False, width=120), encoding="utf-8")
+        temp.replace(self.master_path)
+        return update_metadata(
+            run_dir,
+            draft_base_sha256=hashlib.sha256(self.master_path.read_bytes()).hexdigest(),
+            stage="已发布到 Master Resume",
+            editor_draft=True,
+        )
+
+    def rollback_editor_version(self, run_id: str, version_id: str) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        version = next((item for item in self._versions(run_dir) if item["id"] == version_id), None)
+        if not version:
+            raise ResumeAgentError("版本不存在")
+        resume = read_yaml(run_dir, version["filename"])
+        write_yaml(run_dir, "editor_resume.yaml", resume)
+        return self.publish_editor_draft(run_id, f"回退至 {version_id}")
 
     def _company_update(self, run_dir: Path, job_profile: dict[str, Any]) -> dict[str, Any]:
         if read_metadata(run_dir).get("company"):

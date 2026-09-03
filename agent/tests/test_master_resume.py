@@ -1,7 +1,10 @@
 import copy
 
+from fakes import HappyProvider
+from resume_agent.config import Settings
 from resume_agent.paths import MASTER_RESUME_PATH
 from resume_agent.services.master_resume import collect_facts, load_master_resume, prepare_working_resume
+from resume_agent.services.workflow_service import WorkflowService
 
 
 def test_preparing_working_copy_never_changes_master_file_or_object():
@@ -32,3 +35,24 @@ def test_all_editable_text_has_stable_id_and_support():
                     assert item["id"]
                     assert item["supported_by"]
 
+
+def test_editor_draft_publishes_only_after_confirmation_and_can_roll_back(tmp_path):
+    master = tmp_path / "resume.yaml"
+    master.write_bytes(MASTER_RESUME_PATH.read_bytes())
+    service = WorkflowService(
+        HappyProvider(), Settings(api_key="fake"), runs_root=tmp_path / "runs", master_path=master
+    )
+    run_id = service.get_or_create_editor_draft()["run_id"]
+    original = master.read_text(encoding="utf-8")
+    changed = service.get_editor_draft(run_id)
+    changed["meta"]["name"]["zh"] = "测试姓名"
+    service.update_editor_draft(run_id, changed)
+    assert master.read_text(encoding="utf-8") == original
+
+    service.publish_editor_draft(run_id, "测试发布")
+    assert load_master_resume(master)["meta"]["name"]["zh"] == "测试姓名"
+    versions = service.editor_versions(run_id)
+    assert len(versions) == 2
+
+    service.rollback_editor_version(run_id, versions[0]["id"])
+    assert load_master_resume(master)["meta"]["name"]["zh"] != "测试姓名"

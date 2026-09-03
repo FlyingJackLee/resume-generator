@@ -1,5 +1,7 @@
 # Resume Generator
 
+[English](README.md) · [简体中文](README.zh-CN.md)
+
 > A local-first, bilingual resume workspace for maintaining a baseline resume, tailoring fact-safe versions to job descriptions, and exporting polished A4 HTML/PDF documents.
 
 Resume Generator combines a structured YAML resume with an AI-assisted review workflow. It is designed for a single user: your resume data stays on your machine, while every AI-generated change remains traceable to the baseline facts.

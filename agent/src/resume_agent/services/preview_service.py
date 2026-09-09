@@ -29,15 +29,20 @@ def render_master_preview(lang: str, master_path: Path = MASTER_RESUME_PATH) -> 
     return _render(master_path, lang)
 
 
-def render_run_preview(run_dir: Path, metadata: dict[str, Any], lang: str) -> str:
+def resolve_run_preview_source(run_dir: Path, metadata: dict[str, Any]) -> Path:
+    """Which YAML file currently represents this run's preview-able resume."""
     if metadata.get("editor_draft"):
         draft_path = run_dir / "editor_resume.yaml"
         if draft_path.exists():
-            return _render(draft_path, lang)
+            return draft_path
     target_name = metadata.get("target_file")
     if target_name and (run_dir / target_name).exists():
-        return _render(run_dir / target_name, lang)
+        return run_dir / target_name
     candidate_path = run_dir / "candidate_resume.yaml"
     if candidate_path.exists():
-        return _render(candidate_path, lang)
+        return candidate_path
     raise ResumeAgentError("这个 run 还没有可预览的简历内容")
+
+
+def render_run_preview(run_dir: Path, metadata: dict[str, Any], lang: str) -> str:
+    return _render(resolve_run_preview_source(run_dir, metadata), lang)

@@ -151,3 +151,11 @@ export function runStreamUrl(runId: string): string {
 export function previewUrl(token: string, lang: 'zh' | 'en'): string {
   return `/preview/${token}?lang=${lang}`
 }
+
+export function previewDownloadUrl(token: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string {
+  return `/preview/${token}/download/${format}/${lang}`
+}
+
+export function previewYamlDownloadUrl(token: string): string {
+  return `/preview/${token}/download/yaml`
+}

@@ -611,7 +611,10 @@ class WorkflowService:
                     iteration = result.get("iteration", 0)
                     if node_name == "edit_resume":
                         write_json(run_dir, f"edit_{iteration:02d}.patch.json", result["editor_patch"])
-                        stage, progress = "Patch Engine", 2
+                        if result.get("patch_validation", {}).get("passed", True):
+                            stage, progress = "Patch Engine", 2
+                        else:
+                            stage, progress = "Resume Editor 返工", 1
                     elif node_name == "apply_patch":
                         write_yaml(run_dir, f"candidate_{iteration:02d}.yaml", result["candidate_resume"])
                         stage, progress = "Fact Validator", 3
@@ -629,10 +632,12 @@ class WorkflowService:
                             stage, progress = "Human Gate ②", 4
                     elif node_name == "validation_failed":
                         stage, progress = "事实校验失败", 4
+                    elif node_name == "patch_validation_failed":
+                        stage, progress = "策略校验失败", 4
                     else:
                         stage, progress = "Human Gate ②：等待最终确认", 4
                     event_status = update.get("status", result.get("status", "EDITING"))
-                    if node_name in {"final_ready", "validation_failed"}:
+                    if node_name in {"final_ready", "validation_failed", "patch_validation_failed"}:
                         event_status = "FINALIZING"
                     update_metadata(
                         run_dir,
@@ -643,6 +648,28 @@ class WorkflowService:
                         progress_current=progress,
                         progress_total=4,
                     )
+            if not result.get("patch_validation", {}).get("passed", True):
+                # edit_resume never produced a strategy-compliant patch within max_iterations —
+                # apply_patch/validate_facts never ran, so there is no candidate_resume or
+                # fact_validation to persist. Surface the structural issues instead.
+                write_json(run_dir, "edit.patch.json", result["editor_patch"])
+                update_metadata(
+                    run_dir,
+                    status="FAILED",
+                    iteration=result["iteration"],
+                    stage="策略校验失败",
+                )
+                write_json(
+                    run_dir,
+                    "error.json",
+                    {
+                        "type": "StrategyComplianceError",
+                        "message": "Resume Editor 多次尝试后，仍未能在批准的策略范围内完成这次改写",
+                        "issues": result["patch_validation"]["issues"],
+                    },
+                )
+                logger.info("compile graph finished run_id=%s status=FAILED (strategy compliance)", run_id)
+                return
             write_json(run_dir, "edit.patch.json", result["editor_patch"])
             write_yaml(run_dir, "candidate_resume.yaml", result["candidate_resume"])
             write_json(run_dir, "validation.json", result["fact_validation"])

@@ -47,6 +47,7 @@ export interface Translations {
     round: string
     generated: string
     runFailed: string
+    errorTypes: { FactValidationError: string; StrategyComplianceError: string }
     retry: { button: string; retrying: string }
     jumpToCurrent: string
     compileStepPlaceholder: string
@@ -172,6 +173,7 @@ export interface Translations {
     version: string
     masterResumeOption: string
     pendingApproval: string
+    download: { yaml: string; html: string; pdf: string }
   }
 }
 
@@ -229,6 +231,10 @@ const zh: Translations = {
     round: '第 {n} 轮',
     generated: '已生成：{file}',
     runFailed: '运行失败',
+    errorTypes: {
+      FactValidationError: '多轮修改后，AI 仍无法在不越界的前提下满足评分要求，需要你确认下方的具体问题。',
+      StrategyComplianceError: 'AI 在改写时多次引用了未获批准的经历内容，为了不让简历出现"查无实据"的内容，已自动停下来，需要你确认下方的具体问题。',
+    },
     retry: { button: '重试', retrying: '重试中…' },
     jumpToCurrent: '回到当前步骤',
     compileStepPlaceholder: '这一步没有独立产出可看，请查看 Fact Validator / Hiring Manager 或最终 Diff。',
@@ -354,6 +360,7 @@ const zh: Translations = {
     version: '版本',
     masterResumeOption: 'Master Resume（基准）',
     pendingApproval: '（待批准，预览候选版本）',
+    download: { yaml: '原始 YAML', html: 'HTML', pdf: 'PDF' },
   },
 }
 
@@ -411,6 +418,10 @@ const en: Translations = {
     round: 'Round {n}',
     generated: 'Generated: {file}',
     runFailed: 'Run Failed',
+    errorTypes: {
+      FactValidationError: 'After several rework passes, the AI still could not meet the scoring bar without overstating your experience — please review the specific issues below.',
+      StrategyComplianceError: "The AI repeatedly cited experience it wasn't approved to use while rewriting, so it stopped itself rather than add anything unverifiable — please review the specific issues below.",
+    },
     retry: { button: 'Retry', retrying: 'Retrying…' },
     jumpToCurrent: 'Jump to current step',
     compileStepPlaceholder: 'No standalone output for this step — see Fact Validator / Hiring Manager or the final diff.',
@@ -536,6 +547,7 @@ const en: Translations = {
     version: 'Version',
     masterResumeOption: 'Master Resume (baseline)',
     pendingApproval: '(pending approval, previewing candidate)',
+    download: { yaml: 'Original YAML', html: 'HTML', pdf: 'PDF' },
   },
 }
 

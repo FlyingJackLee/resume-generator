@@ -23,6 +23,7 @@ htmlcov/
 !/agent/data/runs/.gitkeep
 /agent/data/logs/
 /agent/data/templates/
+/agent/data/master_export/
 
 # Local-only archives and planning material
 /local-archive/

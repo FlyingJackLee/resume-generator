@@ -1637,7 +1637,7 @@ wheels = [
 
 [[package]]
 name = "resume-generator"
-version = "0.2.0"
+version = "0.3.0"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
@@ -1652,6 +1652,7 @@ dependencies = [
     { name = "pymupdf" },
     { name = "pypdf" },
     { name = "python-docx" },
+    { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "rapidocr" },
@@ -1680,6 +1681,7 @@ requires-dist = [
     { name = "pymupdf", specifier = ">=1.24" },
     { name = "pypdf", specifier = ">=4.0" },
     { name = "python-docx", specifier = ">=1.1" },
+    { name = "python-dotenv", specifier = ">=1.0" },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rapidocr", specifier = ">=3.0" },

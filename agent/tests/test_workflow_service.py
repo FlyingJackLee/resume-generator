@@ -4,7 +4,7 @@ import time
 from resume_agent.config import Settings
 from resume_agent.models import ResumePatch, RewriteStrategy
 from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
-from resume_agent.services.run_store import read_yaml
+from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
 
 from fakes import HappyProvider
@@ -130,6 +130,79 @@ def test_retry_after_compile_failure_resumes_compile_without_regenerating_strate
     assert retried["status"] == "EDITING"
     strategy_after = (service.resolve_run(run_id) / "approved_strategy.json").read_text(encoding="utf-8")
     assert strategy_after == strategy_before
+
+
+class OnceUnapprovedFactProvider(HappyProvider):
+    """Cites an unapproved fact on the first patch attempt, then a compliant one."""
+
+    def complete(self, *, system, user, output_type, temperature):
+        if output_type is ResumePatch and "ResumePatch" not in self.calls:
+            self.calls.append(output_type.__name__)
+            return ResumePatch.model_validate({
+                "operations": [{
+                    "op": "replace",
+                    "path": "/sections/introduction/body",
+                    "supported_by": ["fact_introduction_body", "fact_skills_backend"],
+                    "reason": "Align positioning",
+                    "value": {"zh": self.body["zh"], "en": self.body["en"]},
+                }]
+            })
+        return super().complete(system=system, user=user, output_type=output_type, temperature=temperature)
+
+
+def test_editor_self_corrects_after_citing_an_unapproved_fact(tmp_path):
+    provider = OnceUnapprovedFactProvider()
+    settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=2)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+
+    assert service.get(run_id)["status"] == "WAITING_FINAL_APPROVAL"
+    assert provider.calls.count("ResumePatch") == 2
+    assert (service.resolve_run(run_id) / "candidate_resume.yaml").exists()
+
+
+class AlwaysUnapprovedFactProvider(HappyProvider):
+    """Always cites a fact the approved strategy never listed for that path."""
+
+    def complete(self, *, system, user, output_type, temperature):
+        if output_type is ResumePatch:
+            self.calls.append(output_type.__name__)
+            return ResumePatch.model_validate({
+                "operations": [{
+                    "op": "replace",
+                    "path": "/sections/introduction/body",
+                    "supported_by": ["fact_introduction_body", "fact_skills_backend"],
+                    "reason": "Align positioning",
+                    "value": {"zh": self.body["zh"], "en": self.body["en"]},
+                }]
+            })
+        return super().complete(system=system, user=user, output_type=output_type, temperature=temperature)
+
+
+def test_editor_patch_violation_exhausts_rework_and_writes_structured_error(tmp_path):
+    provider = AlwaysUnapprovedFactProvider()
+    settings = Settings(api_key="fake", max_iterations=2)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
+    run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+
+    metadata = service.get(run_id)
+    assert metadata["status"] == "FAILED"
+    assert metadata["stage"] == "策略校验失败"
+    assert provider.calls.count("ResumePatch") == 2
+    assert "HiringEvaluation" not in provider.calls
+    run_dir = service.resolve_run(run_id)
+    assert not (run_dir / "candidate_resume.yaml").exists()
+
+    error = read_json(run_dir, "error.json")
+    assert error["type"] == "StrategyComplianceError"
+    assert error["issues"][0]["code"] == "P02"
+    assert error["issues"][0]["path"] == "/sections/introduction/body"
 
 
 def test_company_is_auto_filled_from_job_profile_when_not_provided(tmp_path):

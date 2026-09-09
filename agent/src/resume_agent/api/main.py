@@ -22,12 +22,17 @@ from resume_agent.models import ManualEditRequest, RewriteStrategy, StrategyDeci
 from resume_agent.providers import OpenAICompatibleProvider
 from resume_agent.services.catalog import editable_catalog
 from resume_agent.services.master_resume import collect_facts, ensure_master_resume
-from resume_agent.services.preview_service import render_master_preview, render_run_preview
+from resume_agent.services.preview_service import (
+    _render,
+    render_master_preview,
+    render_run_preview,
+    resolve_run_preview_source,
+)
 from resume_agent.services.resume_labels import path_label as _path_label
 from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
 from resume_agent.services.template_service import TemplateService
-from resume_agent.paths import TEMPLATES_ROOT
+from resume_agent.paths import MASTER_EXPORT_DIR, MASTER_RESUME_PATH, TEMPLATES_ROOT
 
 
 logger = logging.getLogger(__name__)
@@ -262,12 +267,15 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         return workflow.rollback_editor_version(run_id, version_id)
 
     @app.get("/api/v1/resume/editor-drafts/{run_id}/download/{format}/{lang}")
-    async def download_editor_draft(run_id: str, format: str, lang: str, workflow: ServiceDep):
+    def download_editor_draft(run_id: str, format: str, lang: str, workflow: ServiceDep):
+        # Plain `def`, not `async def`: PDF export calls playwright's sync API
+        # (export_pdf), which refuses to run on the asyncio event loop an
+        # `async def` handler executes on. A sync def gets threadpool-offloaded
+        # by Starlette instead, where sync_playwright() is legal.
         if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
             raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
         run_dir = workflow.resolve_run(run_id)
         resume = workflow.get_editor_draft(run_id)
-        from resume_agent.services.preview_service import _render
         html_path = run_dir / f"resume.{lang}.html"
         html_path.write_text(_render(run_dir / "editor_resume.yaml", lang), encoding="utf-8")
         if format == "html":
@@ -365,6 +373,37 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         run_dir = workflow.resolve_run(token)
         metadata = workflow.get(token)
         return render_run_preview(run_dir, metadata, lang)
+
+    def _resolve_preview_source(token: str, workflow: WorkflowService) -> tuple[Path, Path]:
+        """(source_yaml_path, scratch_dir to write generated files into) for a preview token."""
+        if token == "master":
+            MASTER_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+            return MASTER_RESUME_PATH, MASTER_EXPORT_DIR
+        run_dir = workflow.resolve_run(token)
+        metadata = workflow.get(token)
+        return resolve_run_preview_source(run_dir, metadata), run_dir
+
+    @app.get("/preview/{token}/download/{format}/{lang}")
+    def download_preview(token: str, format: str, lang: str, workflow: ServiceDep):
+        # Plain `def` — see download_editor_draft above for why.
+        if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
+            raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
+        source_path, scratch_dir = _resolve_preview_source(token, workflow)
+        html_path = scratch_dir / f"resume.{lang}.html"
+        html_path.write_text(_render(source_path, lang), encoding="utf-8")
+        if format == "html":
+            return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
+        from resume_render import load_data, localize
+        from build import export_pdf
+        resume = load_data(path=source_path)
+        pdf_path = scratch_dir / f"resume.{lang}.pdf"
+        export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
+
+    @app.get("/preview/{token}/download/yaml")
+    async def download_preview_yaml(token: str, workflow: ServiceDep):
+        source_path, _ = _resolve_preview_source(token, workflow)
+        return FileResponse(source_path, filename="resume.yaml", media_type="application/x-yaml")
 
     @app.post("/api/v1/resume/runs/{run_id}/retry", status_code=202)
     async def retry_run(run_id: str, workflow: ServiceDep):

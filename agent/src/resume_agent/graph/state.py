@@ -11,6 +11,7 @@ class ResumeState(TypedDict, total=False):
     rewrite_strategy: dict[str, Any]
     approved_strategy: dict[str, Any]
     editor_patch: dict[str, Any]
+    patch_validation: dict[str, Any]
     candidate_resume: dict[str, Any]
     fact_validation: dict[str, Any]
     hiring_evaluation: dict[str, Any]

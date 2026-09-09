@@ -77,6 +77,20 @@ def test_reorder_requires_exact_existing_ids():
     assert [entry["id"] for entry in reordered] == list(reversed(ids))
 
 
+def test_reorder_diff_reports_readable_labels_not_raw_entry_dicts():
+    master = working_resume()
+    entries = next(section for section in master["sections"] if section["id"] == "projects")["entries"]
+    titles = [entry["title"]["zh"] for entry in entries]
+    ids = [entry["id"] for entry in entries]
+    patch = ResumePatch(operations=[PatchOperation(
+        op="reorder", path="/sections/projects/entries", reason="相关性排序", value=list(reversed(ids))
+    )])
+    candidate = apply_patch(master, patch)
+    diff = build_diff(master, candidate, patch)[0]
+    assert diff["original"] == titles
+    assert diff["revised"] == list(reversed(titles))
+
+
 def test_restore_can_reinsert_an_item_hidden_from_candidate():
     master = working_resume()
     work = work_section(master)

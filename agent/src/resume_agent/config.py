@@ -2,8 +2,16 @@ from functools import lru_cache
 
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Settings below only parses RESUME_AGENT_* keys out of .env into itself; it
+# never touches os.environ. Libraries that read env vars directly (langsmith's
+# LANGSMITH_TRACING/LANGSMITH_API_KEY/LANGSMITH_PROJECT, in particular) need
+# them to actually land in the process environment, which `uv run` does not
+# do by default.
+load_dotenv()
 
 
 class Settings(BaseSettings):

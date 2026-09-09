@@ -41,7 +41,7 @@ import { deriveDefaultSelectedStep, deriveMacroSteps, deriveWorkflowSteps } from
 export default function RunDetailPage() {
   const { runId } = useParams<{ runId: string }>()
   const queryClient = useQueryClient()
-  const { t } = useTranslation()
+  const { t, dict } = useTranslation()
   const [selected, setSelected] = useState<string | null>(null)
   const [autoFollow, setAutoFollow] = useState(true)
 
@@ -160,10 +160,20 @@ export default function RunDetailPage() {
           {run.status === 'FAILED' && artifacts?.error && (
             <div className="card callout-danger">
               <h2>{t('runDetail.runFailed')}</h2>
-              <p>
-                <strong>{artifacts.error.type}</strong>
-              </p>
-              <p>{artifacts.error.message}</p>
+              {/* Known, expected guardrail failures (the AI hit a fact-safety rule) get a
+                  plain-language explanation instead of the raw exception type/message, so
+                  this doesn't read as a crash. Anything else falls back to the raw values —
+                  those really are unexpected and worth showing verbatim for debugging. */}
+              {(dict.runDetail.errorTypes as Record<string, string>)[artifacts.error.type] ? (
+                <p>{(dict.runDetail.errorTypes as Record<string, string>)[artifacts.error.type]}</p>
+              ) : (
+                <>
+                  <p>
+                    <strong>{artifacts.error.type}</strong>
+                  </p>
+                  <p>{artifacts.error.message}</p>
+                </>
+              )}
               {artifacts.error.issues && artifacts.error.issues.length > 0 && (
                 <ValidationIssuesList issues={artifacts.error.issues} />
               )}

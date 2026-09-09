@@ -49,6 +49,18 @@ def build_compile_graph(nodes: AgentNodes):
         logger.debug("fact validation run_id=%s result=%s", state.get("run_id"), result.model_dump())
         return {"fact_validation": result.model_dump(), "status": "REVIEWING" if result.passed else "REVISING"}
 
+    def route_editor_patch(state: ResumeState) -> str:
+        # edit_resume itself rejects an out-of-strategy patch (wrong target_path or a
+        # supported_by fact the approved action never listed) rather than raising — that
+        # keeps a single bad sample inside the same rework loop fact validation already
+        # uses, instead of aborting the run outright.
+        validation = state.get("patch_validation")
+        if not validation or validation.get("passed", True):
+            return "apply_patch"
+        if state["iteration"] < state["max_iterations"]:
+            return "edit_resume"
+        return "patch_validation_failed"
+
     def route_validation(state: ResumeState) -> str:
         if state["fact_validation"]["passed"]:
             return "hiring_manager"
@@ -63,6 +75,9 @@ def build_compile_graph(nodes: AgentNodes):
             return "edit_resume"
         return "final_ready"
 
+    def patch_validation_failed(_: ResumeState) -> dict[str, str]:
+        return {"status": "FAILED"}
+
     def validation_failed(_: ResumeState) -> dict[str, str]:
         return {"status": "FAILED"}
 
@@ -74,13 +89,15 @@ def build_compile_graph(nodes: AgentNodes):
     graph.add_node("apply_patch", apply_editor_patch)
     graph.add_node("validate_facts", validate)
     graph.add_node("hiring_manager", nodes.hiring_manager)
+    graph.add_node("patch_validation_failed", patch_validation_failed)
     graph.add_node("validation_failed", validation_failed)
     graph.add_node("final_ready", final_ready)
     graph.add_edge(START, "edit_resume")
-    graph.add_edge("edit_resume", "apply_patch")
+    graph.add_conditional_edges("edit_resume", route_editor_patch)
     graph.add_edge("apply_patch", "validate_facts")
     graph.add_conditional_edges("validate_facts", route_validation)
     graph.add_conditional_edges("hiring_manager", route_hiring)
+    graph.add_edge("patch_validation_failed", END)
     graph.add_edge("validation_failed", END)
     graph.add_edge("final_ready", END)
     return graph.compile()

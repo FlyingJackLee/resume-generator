@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { listRuns, previewUrl } from '../api/client'
+import { listRuns, previewDownloadUrl, previewUrl, previewYamlDownloadUrl } from '../api/client'
 import { useTranslation } from '../i18n/LanguageContext'
 
 const VIEWABLE_STATUSES = new Set(['WAITING_FINAL_APPROVAL', 'COMPLETED'])
@@ -47,6 +48,20 @@ export default function ResumeViewerPage() {
           <button className={previewLang === 'en' ? 'active' : ''} onClick={() => setPreviewLang('en')}>
             English
           </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a className="button secondary" href={previewYamlDownloadUrl(token)}>
+            <Download size={16} />
+            {t('resumeViewer.download.yaml')}
+          </a>
+          <a className="button secondary" href={previewDownloadUrl(token, 'html', previewLang)}>
+            <Download size={16} />
+            {t('resumeViewer.download.html')}
+          </a>
+          <a className="button secondary" href={previewDownloadUrl(token, 'pdf', previewLang)}>
+            <Download size={16} />
+            {t('resumeViewer.download.pdf')}
+          </a>
         </div>
       </div>
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

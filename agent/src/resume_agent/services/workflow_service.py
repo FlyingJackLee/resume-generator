@@ -7,6 +7,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from langsmith import traceable
+
 from resume_agent.agents import AgentNodes
 from resume_agent.config import Settings
 from resume_agent.errors import ResumeAgentError
@@ -34,6 +36,17 @@ from .strategy_validator import validate_strategy
 
 
 logger = logging.getLogger(__name__)
+
+
+def _trace_run_input(inputs: dict[str, Any]) -> dict[str, str]:
+    """Keep the custom workflow span useful without duplicating resume/JD text."""
+    return {"run_id": str(inputs.get("run_id", ""))}
+
+
+def _trace_empty_output(_: Any) -> dict[str, str]:
+    # Graph and LLM child spans contain their own diagnostic information. The
+    # enclosing service span only represents lifecycle and duration.
+    return {}
 
 
 class WorkflowService:
@@ -231,6 +244,12 @@ class WorkflowService:
         target_company = (job_profile or {}).get("target_company")
         return {"company": target_company} if target_company else {}
 
+    @traceable(
+        name="Resume analysis workflow",
+        run_type="chain",
+        process_inputs=_trace_run_input,
+        process_outputs=_trace_empty_output,
+    )
     def analyze(self, run_id: str) -> None:
         run_dir = self.resolve_run(run_id)
         logger.info("analysis graph started run_id=%s", run_id)
@@ -294,7 +313,11 @@ class WorkflowService:
             result = dict(state)
             for event in self.analysis_graph.stream(
                 state,
-                config={"tags": [run_id], "run_name": run_id},
+                config={
+                    "tags": ["resume-analysis", run_id],
+                    "run_name": f"Resume analysis · {run_id}",
+                    "metadata": {"resume_run_id": run_id, "workflow": "analysis"},
+                },
                 stream_mode="updates",
             ):
                 for node_name, update in event.items():
@@ -490,6 +513,12 @@ class WorkflowService:
         write_json(run_dir, "rewrite_strategy.json", strategy.model_dump())
         return read_metadata(run_dir)
 
+    @traceable(
+        name="Resume rewrite workflow",
+        run_type="chain",
+        process_inputs=_trace_run_input,
+        process_outputs=_trace_empty_output,
+    )
     def compile(self, run_id: str) -> None:
         run_dir = self.resolve_run(run_id)
         logger.info("compile graph started run_id=%s", run_id)
@@ -515,7 +544,12 @@ class WorkflowService:
             result = dict(state)
             for event in self.compile_graph.stream(
                 state,
-                config={"recursion_limit": 30, "tags": [run_id], "run_name": run_id},
+                config={
+                    "recursion_limit": 30,
+                    "tags": ["resume-rewrite", run_id],
+                    "run_name": f"Resume rewrite · {run_id}",
+                    "metadata": {"resume_run_id": run_id, "workflow": "rewrite"},
+                },
                 stream_mode="updates",
             ):
                 for node_name, update in event.items():

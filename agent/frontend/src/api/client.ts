@@ -112,6 +112,13 @@ export function updateEditorDraft(runId: string, resume: Record<string, unknown>
     body: JSON.stringify({ resume }),
   })
 }
+export interface ResumeImportResult { resume: Record<string, unknown>; source_languages: Array<'zh' | 'en'>; warnings: string[]; extraction_method: string }
+export async function importEditorResume(runId: string, file: File): Promise<ResumeImportResult> {
+  const form = new FormData(); form.append('file', file)
+  const response = await fetch(`/api/v1/resume/editor-drafts/${runId}/import`, { method: 'POST', body: form })
+  if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.detail ?? '简历导入失败') }
+  return response.json() as Promise<ResumeImportResult>
+}
 
 export interface EditorVersion { id: string; filename: string; message: string; created_at: string }
 export function getEditorVersions(runId: string): Promise<EditorVersion[]> { return request(`/api/v1/resume/editor-drafts/${runId}/versions`) }

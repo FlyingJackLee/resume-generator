@@ -124,6 +124,16 @@ body {
 .editor-pane, .preview-pane { margin-bottom: 0; min-width: 0; }
 .editor-toolbar, .editor-toolbar > div, .conflict { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); font-size: 13px; color: var(--text-muted); }
 .editor-toolbar button, .editor-toolbar a, .conflict button { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.resume-import { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-4); padding: 18px 20px; border-color: var(--primary-border); background: linear-gradient(105deg, #f7fbff 0%, #eff6ff 58%, #fff 100%); }
+.resume-import-copy { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; }
+.resume-import-icon { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px; color: var(--primary); background: #dbeafe; }
+.resume-import h2 { margin: 0 0 2px; font-size: 15px; color: var(--text); }
+.resume-import p { margin: 0; color: var(--text-muted); }
+.resume-import small { display: block; margin-top: 5px; color: #64748b; font-size: 12px; }
+.resume-import-action { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: 0 0 auto; min-height: 36px; padding: 0 13px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; color: #fff; background: var(--primary); box-shadow: 0 1px 2px rgb(37 99 235 / .2); transition: background .15s ease, transform .15s ease; }
+.resume-import-action:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.resume-import-action.is-loading { cursor: progress; background: var(--primary-hover); opacity: .75; transform: none; }
+.resume-import-input { display: none !important; }
 .editor-save-state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
 .editor-save-state.saved { color: var(--status-success-fg); }.editor-save-state.error { color: var(--status-danger-fg); }
 .preview-toolbar { display: flex; justify-content: space-between; gap: var(--space-3); align-items: flex-start; margin-bottom: var(--space-3); }.preview-toolbar h2 { margin-bottom: var(--space-1); }
@@ -892,5 +902,14 @@ input[type='checkbox'] {
 @media (max-width: 900px) {
   .run-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .resume-import {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .resume-import-action {
+    width: 100%;
   }
 }

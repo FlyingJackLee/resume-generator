@@ -72,6 +72,9 @@ class EditorDraftUpdateRequest(BaseModel):
     resume: dict
 
 
+MAX_RESUME_IMPORT_BYTES = 15 * 1024 * 1024
+
+
 class EditorConflictRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     action: str
@@ -219,6 +222,20 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         run_id: str, payload: EditorDraftUpdateRequest, workflow: ServiceDep
     ):
         return workflow.update_editor_draft(run_id, payload.resume)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/import")
+    async def import_editor_resume(run_id: str, workflow: ServiceDep, file: UploadFile = File(...)):
+        if not file.filename:
+            raise ResumeAgentError("请选择简历文件")
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in {".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".yaml", ".yml"}:
+            raise ResumeAgentError("仅支持 PDF、DOCX、PNG、JPG、WEBP 或 YAML 简历")
+        payload = await file.read(MAX_RESUME_IMPORT_BYTES + 1)
+        if len(payload) > MAX_RESUME_IMPORT_BYTES:
+            raise ResumeAgentError("简历文件不能超过 15 MB")
+        if not payload:
+            raise ResumeAgentError("上传文件为空")
+        return workflow.import_editor_resume(run_id, file.filename, payload)
 
     @app.get("/api/v1/resume/editor-drafts/{run_id}/versions")
     async def editor_versions(run_id: str, workflow: ServiceDep):

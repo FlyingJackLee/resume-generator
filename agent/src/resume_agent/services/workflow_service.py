@@ -3,6 +3,7 @@ from __future__ import annotations
 import traceback
 import logging
 import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from .diff_service import build_diff
 from .fact_validator import validate_candidate
 from .master_resume import load_master_resume, prepare_working_resume
 from .patch_engine import apply_patch
+from .resume_import import IMPORT_SYSTEM_PROMPT, ParsedResume, extract_upload, normalize_resume, source_language_hint
 from .run_store import (
     create_run,
     read_events,
@@ -183,6 +185,57 @@ class WorkflowService:
             if candidate.exists():
                 candidate.unlink()
         return update_metadata(run_dir, stage="在线编辑草稿", editor_draft=True)
+
+    @traceable(
+        name="Resume import",
+        run_type="chain",
+        process_inputs=lambda inputs: {
+            "run_id": str(inputs.get("run_id", "")),
+            "filename": str(inputs.get("filename", "")),
+            "upload_bytes": len(inputs.get("payload", b"")),
+        },
+        process_outputs=lambda output: {
+            "source_languages": output.get("source_languages", []),
+            "warning_count": len(output.get("warnings", [])),
+        },
+    )
+    def import_editor_resume(self, run_id: str, filename: str, payload: bytes) -> dict[str, Any]:
+        """Imports into the editable draft only; it never changes the Master Resume."""
+        run_dir = self.resolve_run(run_id)
+        if not read_metadata(run_dir).get("editor_draft"):
+            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        suffix = Path(filename).suffix.lower()
+        (run_dir / f"source_upload{suffix}").write_bytes(payload)
+        text, yaml_resume, extraction_method = extract_upload(
+            filename,
+            payload,
+            ocr_max_pages=self.settings.ocr_max_pages,
+            scan_parser=self.settings.scan_parser,
+            mineru_api_base_url=self.settings.mineru_api_base_url,
+            mineru_api_token=self.settings.mineru_api_token,
+            mineru_model_version=self.settings.mineru_model_version,
+            mineru_timeout_seconds=self.settings.mineru_timeout_seconds,
+        )
+        if yaml_resume is not None and isinstance(yaml_resume.get("meta"), dict) and isinstance(yaml_resume.get("sections"), list):
+            parsed = ParsedResume(resume=yaml_resume, source_languages=["zh", "en"])
+        else:
+            if yaml_resume is not None:
+                text = json.dumps(yaml_resume, ensure_ascii=False)
+            if not text:
+                raise ResumeAgentError("上传文件不包含可解析内容")
+            parsed = self.nodes.provider.complete(system=IMPORT_SYSTEM_PROMPT, user=f"Extract this resume:\n\n{text[:120_000]}", output_type=ParsedResume, temperature=0)
+            detected = source_language_hint(text)
+            if detected:
+                parsed.source_languages = detected
+        resume = normalize_resume(parsed.resume, parsed.source_languages)
+        self.update_editor_draft(run_id, resume)
+        self._append_editor_version(run_dir, resume, f"从 {filename} 导入")
+        return {
+            "resume": resume,
+            "source_languages": parsed.source_languages,
+            "warnings": parsed.warnings,
+            "extraction_method": extraction_method,
+        }
 
     def editor_versions(self, run_id: str) -> list[dict[str, Any]]:
         run_dir = self.resolve_run(run_id)

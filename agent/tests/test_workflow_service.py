@@ -3,6 +3,8 @@ import time
 
 from resume_agent.config import Settings
 from resume_agent.models import ResumePatch, RewriteStrategy
+from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
+from resume_agent.services.run_store import read_yaml
 from resume_agent.services.workflow_service import WorkflowService
 
 from fakes import HappyProvider
@@ -10,7 +12,7 @@ from fakes import HappyProvider
 
 def make_service(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=2)
-    return WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    return WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
 
 
 def test_two_human_gates_and_named_final_output(tmp_path):
@@ -80,7 +82,7 @@ class AlwaysInvalidProvider(HappyProvider):
 def test_validator_rework_is_bounded_to_two_editor_attempts(tmp_path):
     provider = AlwaysInvalidProvider()
     settings = Settings(api_key="fake", max_iterations=2)
-    service = WorkflowService(provider, settings, runs_root=tmp_path)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -105,7 +107,7 @@ class DeviatingEditorProvider(HappyProvider):
             return ResumePatch.model_validate({
                 "operations": [{
                     "op": "reorder",
-                    "path": "/sections/work/entries",
+                    "path": "/sections/experience/entries",
                     "value": ["some_entry"],
                 }]
             })
@@ -115,7 +117,7 @@ class DeviatingEditorProvider(HappyProvider):
 def test_retry_after_compile_failure_resumes_compile_without_regenerating_strategy(tmp_path):
     provider = DeviatingEditorProvider()
     settings = Settings(api_key="fake", max_iterations=2)
-    service = WorkflowService(provider, settings, runs_root=tmp_path)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -194,13 +196,17 @@ def test_manual_edit_accumulates_diff_with_editor_patch(tmp_path):
     diff_before = service.get_diff(run_id)
     assert [item["path"] for item in diff_before] == ["/sections/introduction/body"]
 
+    resume = read_yaml(service.resolve_run(run_id), "input_resume.yaml")
+    skills = next(section for section in resume["sections"] if section["id"] == "skills")
+    row = skills["rows"][0]
+    path = f"/sections/skills/rows/{row['id']}/items"
     patch = ResumePatch.model_validate(
         {
             "operations": [
                 {
                     "op": "replace",
-                    "path": "/sections/skills/rows/ai_agent_development/items",
-                    "supported_by": ["fact_introduction_body"],
+                    "path": path,
+                    "supported_by": row["items"]["supported_by"],
                     "reason": "manual tweak",
                     "value": {"zh": "手动新增技能描述", "en": "Manually added skill text"},
                 }
@@ -213,7 +219,7 @@ def test_manual_edit_accumulates_diff_with_editor_patch(tmp_path):
     paths = {item["path"] for item in diff_after}
     assert paths == {
         "/sections/introduction/body",
-        "/sections/skills/rows/ai_agent_development/items",
+        path,
     }
 
 
@@ -255,7 +261,7 @@ def test_approve_final_and_reject_final_update_stage(tmp_path):
 
 def test_langsmith_trace_url_reflects_settings(tmp_path):
     settings = Settings(api_key="fake", langsmith_project_url="https://smith.langchain.com/o/x/projects/p/y")
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     assert service.get(run_id)["langsmith_trace_url"] == "https://smith.langchain.com/o/x/projects/p/y"
 
@@ -266,7 +272,7 @@ def test_langsmith_trace_url_reflects_settings(tmp_path):
 
 def test_auto_approve_strategy_gate_after_timeout(tmp_path):
     settings = Settings(api_key="fake", auto_approve_minutes=0.001)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     assert service.get(run_id)["status"] == "WAITING_STRATEGY_APPROVAL"
@@ -278,7 +284,7 @@ def test_auto_approve_strategy_gate_after_timeout(tmp_path):
 
 def test_auto_approve_final_gate_withheld_below_hiring_threshold(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=95, max_iterations=1, auto_approve_minutes=0.001)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -294,7 +300,7 @@ def test_auto_approve_final_gate_withheld_below_hiring_threshold(tmp_path):
 
 def test_auto_approve_final_gate_after_timeout_when_score_passes(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=1, auto_approve_minutes=0.001)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -308,7 +314,7 @@ def test_auto_approve_final_gate_after_timeout_when_score_passes(tmp_path):
 
 def test_auto_approve_disabled_when_minutes_is_zero(tmp_path):
     settings = Settings(api_key="fake", auto_approve_minutes=0)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
 

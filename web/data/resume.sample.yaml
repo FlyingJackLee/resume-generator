@@ -73,3 +73,13 @@ sections:
             en: "Designed the service architecture and core workflows for modularity, testability and scale."
           - zh: "实现前后端协作体验与交付流程，支持稳定迭代。"
             en: "Delivered the full-stack collaboration experience and a stable release workflow."
+      - title: { zh: "数据服务平台", en: "Data Services Platform" }
+        org: { zh: "后端研发", en: "Backend Engineering" }
+        location: { zh: "2023年", en: "2023" }
+        date: { zh: "", en: "" }
+        summary:
+          zh: "为内部系统提供统一的数据访问与任务处理能力。"
+          en: "Provided shared data access and task processing capabilities for internal systems."
+        responsibilities:
+          - zh: "实现可靠的接口与异步任务处理流程。"
+            en: "Implemented reliable APIs and asynchronous task processing."

@@ -6,9 +6,9 @@ from build import load_data, localize  # noqa: E402
 
 
 def test_load_data_has_meta_and_sections():
-    data = load_data()
-    assert data["meta"]["name"]["zh"] == "李祖民"
-    assert data["meta"]["name"]["en"] == "Zumin Li"
+    data = load_data("data/resume.sample.yaml")
+    assert data["meta"]["name"]["zh"] == "你的姓名"
+    assert data["meta"]["name"]["en"] == "Your Name"
     assert len(data["sections"]) == 5
 
 
@@ -24,7 +24,7 @@ def test_localize_passthrough_for_plain_values():
 
 
 def test_section_types_are_known():
-    data = load_data()
+    data = load_data("data/resume.sample.yaml")
     types = {s["type"] for s in data["sections"]}
     assert types <= {"paragraph", "skills", "education", "entries"}
 

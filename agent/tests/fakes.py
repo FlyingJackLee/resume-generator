@@ -10,12 +10,13 @@ from resume_agent.models import (
     ResumePatch,
     RewriteStrategy,
 )
+from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
 from resume_agent.services import load_master_resume, prepare_working_resume
 
 
 class HappyProvider:
     def __init__(self):
-        working = prepare_working_resume(load_master_resume())
+        working = prepare_working_resume(load_master_resume(MASTER_RESUME_SAMPLE_PATH))
         self.body = working["sections"][0]["body"]
         self.calls: list[str] = []
 
@@ -91,4 +92,3 @@ class HappyProvider:
             },
         }
         return output_type.model_validate(outputs[output_type])
-

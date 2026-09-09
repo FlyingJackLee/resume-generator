@@ -6,7 +6,7 @@ from build import build_one  # noqa: E402
 
 
 def test_build_one_zh_creates_pdf_and_html():
-    html_path, pdf_path = build_one("zh")
+    html_path, pdf_path = build_one("zh", data_path="data/resume.sample.yaml")
     assert html_path.exists()
     assert pdf_path.exists()
     assert pdf_path.stat().st_size > 20_000  # 非空 PDF（含 CJK）
@@ -14,7 +14,7 @@ def test_build_one_zh_creates_pdf_and_html():
 
 def test_pdf_contains_text():
     from pypdf import PdfReader  # noqa
-    _, pdf_path = build_one("en")
+    _, pdf_path = build_one("en", data_path="data/resume.sample.yaml")
     reader = PdfReader(str(pdf_path))
     text = "".join(page.extract_text() or "" for page in reader.pages)
-    assert "Zumin" in text
+    assert "Your Name" in text

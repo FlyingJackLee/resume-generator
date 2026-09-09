@@ -2,26 +2,26 @@ import copy
 
 from fakes import HappyProvider
 from resume_agent.config import Settings
-from resume_agent.paths import MASTER_RESUME_PATH
+from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
 from resume_agent.services.master_resume import collect_facts, load_master_resume, prepare_working_resume
 from resume_agent.services.master_resume import ensure_master_resume
 from resume_agent.services.workflow_service import WorkflowService
 
 
 def test_preparing_working_copy_never_changes_master_file_or_object():
-    before_bytes = MASTER_RESUME_PATH.read_bytes()
-    master = load_master_resume()
+    before_bytes = MASTER_RESUME_SAMPLE_PATH.read_bytes()
+    master = load_master_resume(MASTER_RESUME_SAMPLE_PATH)
     original = copy.deepcopy(master)
     working = prepare_working_resume(master)
     assert master == original
-    assert MASTER_RESUME_PATH.read_bytes() == before_bytes
+    assert MASTER_RESUME_SAMPLE_PATH.read_bytes() == before_bytes
     assert working != master
     assert working["sections"][0]["id"] == "introduction"
-    assert len(collect_facts(working)) >= 20
+    assert len(collect_facts(working)) >= 8
 
 
 def test_all_editable_text_has_stable_id_and_support():
-    working = prepare_working_resume(load_master_resume())
+    working = prepare_working_resume(load_master_resume(MASTER_RESUME_SAMPLE_PATH))
     for section in working["sections"]:
         if "body" in section:
             assert section["body"]["id"] == "body"
@@ -47,7 +47,7 @@ def test_missing_master_is_created_from_sample(tmp_path):
 
 def test_editor_draft_publishes_only_after_confirmation_and_can_roll_back(tmp_path):
     master = tmp_path / "resume.yaml"
-    master.write_bytes(MASTER_RESUME_PATH.read_bytes())
+    master.write_bytes(MASTER_RESUME_SAMPLE_PATH.read_bytes())
     service = WorkflowService(
         HappyProvider(), Settings(api_key="fake"), runs_root=tmp_path / "runs", master_path=master
     )

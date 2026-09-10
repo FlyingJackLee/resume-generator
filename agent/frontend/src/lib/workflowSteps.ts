@@ -52,6 +52,7 @@ const STAGE_TO_NODE: Record<string, string> = {
   'Fact Validator': 'validate_facts',
   'Fact Validator（从候选版本继续）': 'validate_facts',
   '事实校验失败': 'validate_facts',
+  '策略校验失败': 'edit_resume',
   'Hiring Manager': 'hiring_manager',
   'Human Gate ②': 'gate2',
   'Human Gate ②：等待最终确认': 'gate2',

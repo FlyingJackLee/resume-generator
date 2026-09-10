@@ -7,7 +7,9 @@
 </head>
 <body>
 <div class="page">
+  {% if show_language_toggle %}
   <div class="lang-toggle"><a href="resume.{{ 'en' if lang == 'zh' else 'zh' }}.html">{{ 'English' if lang == 'zh' else '中文' }}</a></div>
+  {% endif %}
 
   <header class="header">
     {% if photo_exists %}<img class="photo" src="../{{ meta.photo }}" alt="">{% endif %}

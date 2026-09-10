@@ -1,8 +1,14 @@
 import json
 import time
 
+import pytest
+import yaml
+
 from resume_agent.config import Settings
+from resume_agent.errors import ResumeAgentError
 from resume_agent.models import ResumePatch, RewriteStrategy
+from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
+from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
 
 from fakes import HappyProvider
@@ -10,7 +16,7 @@ from fakes import HappyProvider
 
 def make_service(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=2)
-    return WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    return WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
 
 
 def test_two_human_gates_and_named_final_output(tmp_path):
@@ -34,6 +40,53 @@ def test_two_human_gates_and_named_final_output(tmp_path):
     assert completed["status"] == "COMPLETED"
     assert completed["target_file"] == "google_ai_agent_resume.yaml"
     assert (service.resolve_run(run_id) / completed["target_file"]).exists()
+
+
+def _completed_run(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "We need a senior engineer to build reliable AI agents.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+    completed = service.approve_final(run_id)
+    return service, run_id, completed["target_file"]
+
+
+def test_completed_run_is_editable_and_only_touches_its_own_file(tmp_path):
+    service, run_id, target_file = _completed_run(tmp_path)
+    run_dir = service.resolve_run(run_id)
+
+    assert service.has_approved_snapshot(run_id)
+    draft = service.get_editor_draft(run_id)
+    draft["meta"]["name"] = {"zh": "手动改名", "en": "Manually Renamed"}
+    service.update_editor_draft(run_id, draft)
+
+    assert read_yaml(run_dir, target_file)["meta"]["name"]["zh"] == "手动改名"
+    master = yaml.safe_load(MASTER_RESUME_SAMPLE_PATH.read_text(encoding="utf-8"))
+    assert master["meta"]["name"]["zh"] != "手动改名"
+
+
+def test_completed_run_can_restore_approved_snapshot(tmp_path):
+    service, run_id, target_file = _completed_run(tmp_path)
+    run_dir = service.resolve_run(run_id)
+    original_name = read_yaml(run_dir, target_file)["meta"]["name"]
+
+    draft = service.get_editor_draft(run_id)
+    draft["meta"]["name"] = {"zh": "手动改名", "en": "Manually Renamed"}
+    service.update_editor_draft(run_id, draft)
+    assert read_yaml(run_dir, target_file)["meta"]["name"]["zh"] == "手动改名"
+
+    service.restore_approved_snapshot(run_id)
+    assert read_yaml(run_dir, target_file)["meta"]["name"] == original_name
+
+
+def test_run_awaiting_approval_is_not_editable_via_editor_draft(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "We need a senior engineer to build reliable AI agents.")["run_id"]
+    service.analyze(run_id)
+    assert service.get(run_id)["status"] == "WAITING_STRATEGY_APPROVAL"
+    with pytest.raises(ResumeAgentError, match="不支持在线编辑"):
+        service.get_editor_draft(run_id)
 
 
 def test_final_cannot_be_approved_before_gate(tmp_path):
@@ -80,7 +133,7 @@ class AlwaysInvalidProvider(HappyProvider):
 def test_validator_rework_is_bounded_to_two_editor_attempts(tmp_path):
     provider = AlwaysInvalidProvider()
     settings = Settings(api_key="fake", max_iterations=2)
-    service = WorkflowService(provider, settings, runs_root=tmp_path)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -105,7 +158,7 @@ class DeviatingEditorProvider(HappyProvider):
             return ResumePatch.model_validate({
                 "operations": [{
                     "op": "reorder",
-                    "path": "/sections/work/entries",
+                    "path": "/sections/experience/entries",
                     "value": ["some_entry"],
                 }]
             })
@@ -115,7 +168,7 @@ class DeviatingEditorProvider(HappyProvider):
 def test_retry_after_compile_failure_resumes_compile_without_regenerating_strategy(tmp_path):
     provider = DeviatingEditorProvider()
     settings = Settings(api_key="fake", max_iterations=2)
-    service = WorkflowService(provider, settings, runs_root=tmp_path)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -128,6 +181,79 @@ def test_retry_after_compile_failure_resumes_compile_without_regenerating_strate
     assert retried["status"] == "EDITING"
     strategy_after = (service.resolve_run(run_id) / "approved_strategy.json").read_text(encoding="utf-8")
     assert strategy_after == strategy_before
+
+
+class OnceUnapprovedFactProvider(HappyProvider):
+    """Cites an unapproved fact on the first patch attempt, then a compliant one."""
+
+    def complete(self, *, system, user, output_type, temperature):
+        if output_type is ResumePatch and "ResumePatch" not in self.calls:
+            self.calls.append(output_type.__name__)
+            return ResumePatch.model_validate({
+                "operations": [{
+                    "op": "replace",
+                    "path": "/sections/introduction/body",
+                    "supported_by": ["fact_introduction_body", "fact_skills_backend"],
+                    "reason": "Align positioning",
+                    "value": {"zh": self.body["zh"], "en": self.body["en"]},
+                }]
+            })
+        return super().complete(system=system, user=user, output_type=output_type, temperature=temperature)
+
+
+def test_editor_self_corrects_after_citing_an_unapproved_fact(tmp_path):
+    provider = OnceUnapprovedFactProvider()
+    settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=2)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
+    run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+
+    assert service.get(run_id)["status"] == "WAITING_FINAL_APPROVAL"
+    assert provider.calls.count("ResumePatch") == 2
+    assert (service.resolve_run(run_id) / "candidate_resume.yaml").exists()
+
+
+class AlwaysUnapprovedFactProvider(HappyProvider):
+    """Always cites a fact the approved strategy never listed for that path."""
+
+    def complete(self, *, system, user, output_type, temperature):
+        if output_type is ResumePatch:
+            self.calls.append(output_type.__name__)
+            return ResumePatch.model_validate({
+                "operations": [{
+                    "op": "replace",
+                    "path": "/sections/introduction/body",
+                    "supported_by": ["fact_introduction_body", "fact_skills_backend"],
+                    "reason": "Align positioning",
+                    "value": {"zh": self.body["zh"], "en": self.body["en"]},
+                }]
+            })
+        return super().complete(system=system, user=user, output_type=output_type, temperature=temperature)
+
+
+def test_editor_patch_violation_exhausts_rework_and_writes_structured_error(tmp_path):
+    provider = AlwaysUnapprovedFactProvider()
+    settings = Settings(api_key="fake", max_iterations=2)
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
+    run_id = service.create("Unsafe JD", "A sufficiently long pasted job description.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+
+    metadata = service.get(run_id)
+    assert metadata["status"] == "FAILED"
+    assert metadata["stage"] == "策略校验失败"
+    assert provider.calls.count("ResumePatch") == 2
+    assert "HiringEvaluation" not in provider.calls
+    run_dir = service.resolve_run(run_id)
+    assert not (run_dir / "candidate_resume.yaml").exists()
+
+    error = read_json(run_dir, "error.json")
+    assert error["type"] == "StrategyComplianceError"
+    assert error["issues"][0]["code"] == "P02"
+    assert error["issues"][0]["path"] == "/sections/introduction/body"
 
 
 def test_company_is_auto_filled_from_job_profile_when_not_provided(tmp_path):
@@ -194,13 +320,17 @@ def test_manual_edit_accumulates_diff_with_editor_patch(tmp_path):
     diff_before = service.get_diff(run_id)
     assert [item["path"] for item in diff_before] == ["/sections/introduction/body"]
 
+    resume = read_yaml(service.resolve_run(run_id), "input_resume.yaml")
+    skills = next(section for section in resume["sections"] if section["id"] == "skills")
+    row = skills["rows"][0]
+    path = f"/sections/skills/rows/{row['id']}/items"
     patch = ResumePatch.model_validate(
         {
             "operations": [
                 {
                     "op": "replace",
-                    "path": "/sections/skills/rows/ai_agent_development/items",
-                    "supported_by": ["fact_introduction_body"],
+                    "path": path,
+                    "supported_by": row["items"]["supported_by"],
                     "reason": "manual tweak",
                     "value": {"zh": "手动新增技能描述", "en": "Manually added skill text"},
                 }
@@ -213,7 +343,7 @@ def test_manual_edit_accumulates_diff_with_editor_patch(tmp_path):
     paths = {item["path"] for item in diff_after}
     assert paths == {
         "/sections/introduction/body",
-        "/sections/skills/rows/ai_agent_development/items",
+        path,
     }
 
 
@@ -255,7 +385,7 @@ def test_approve_final_and_reject_final_update_stage(tmp_path):
 
 def test_langsmith_trace_url_reflects_settings(tmp_path):
     settings = Settings(api_key="fake", langsmith_project_url="https://smith.langchain.com/o/x/projects/p/y")
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     assert service.get(run_id)["langsmith_trace_url"] == "https://smith.langchain.com/o/x/projects/p/y"
 
@@ -266,7 +396,7 @@ def test_langsmith_trace_url_reflects_settings(tmp_path):
 
 def test_auto_approve_strategy_gate_after_timeout(tmp_path):
     settings = Settings(api_key="fake", auto_approve_minutes=0.001)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     assert service.get(run_id)["status"] == "WAITING_STRATEGY_APPROVAL"
@@ -278,7 +408,7 @@ def test_auto_approve_strategy_gate_after_timeout(tmp_path):
 
 def test_auto_approve_final_gate_withheld_below_hiring_threshold(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=95, max_iterations=1, auto_approve_minutes=0.001)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -294,7 +424,7 @@ def test_auto_approve_final_gate_withheld_below_hiring_threshold(tmp_path):
 
 def test_auto_approve_final_gate_after_timeout_when_score_passes(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=1, auto_approve_minutes=0.001)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
     service.approve_strategy(run_id)
@@ -308,7 +438,7 @@ def test_auto_approve_final_gate_after_timeout_when_score_passes(tmp_path):
 
 def test_auto_approve_disabled_when_minutes_is_zero(tmp_path):
     settings = Settings(api_key="fake", auto_approve_minutes=0)
-    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path)
+    service = WorkflowService(HappyProvider(), settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
     run_id = service.create("Google AI Agent", "A sufficiently long pasted job description.")["run_id"]
     service.analyze(run_id)
 

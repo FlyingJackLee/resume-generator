@@ -21,15 +21,14 @@
 - Human Gate ② 支持批准、拒绝、恢复原始版本和受事实约束的人工 Patch。
 - Run 列表分页、事件时间线（`events.jsonl`）、SSE 实时状态流、简历预览渲染端点
   （复用 `web/` 的排版逻辑）、简历结构树/事实查询端点——这些是给 `agent/frontend/`
-  操作台用的 API，见下方"前端"。
+操作台用的 API，见下方"前端"。
 
 ## 前端（agent/frontend/）
 
 React SPA，覆盖完整流程：Run 列表、新建 Run、实时进度（SSE）、Human Gate ①（策略编辑
 审批）、Human Gate ②（批准/驳回/恢复原始版本 + 结构化人工 Patch 构建器）、在线查看。
 旧版 Jinja 模板页面已下线，`GET /` 只返回一个指向前端的 JSON 提示。启动方式和现状见
-[`agent/frontend/README.md`](frontend/README.md)。分期规划和已知缺口见根目录
-[`FRONTEND_ROADMAP.md`](../FRONTEND_ROADMAP.md)。
+[`agent/frontend/README.md`](frontend/README.md)。
 
 ## 配置与启动
 

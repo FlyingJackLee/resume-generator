@@ -2,17 +2,32 @@ from __future__ import annotations
 
 import copy
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from resume_agent.errors import ResumeAgentError
-from resume_agent.paths import MASTER_RESUME_PATH
+from resume_agent.paths import MASTER_RESUME_PATH, MASTER_RESUME_SAMPLE_PATH
+
+
+def ensure_master_resume(
+    path: Path = MASTER_RESUME_PATH, sample_path: Path = MASTER_RESUME_SAMPLE_PATH
+) -> Path:
+    """Create the local private resume from the committed sample on first run."""
+    if path.exists():
+        return path
+    if not sample_path.exists():
+        raise ResumeAgentError(f"未找到简历示例文件：{sample_path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(sample_path, path)
+    return path
 
 
 def load_master_resume(path: Path = MASTER_RESUME_PATH) -> dict[str, Any]:
     """Load the canonical resume read-only. This module never writes to *path*."""
+    ensure_master_resume(path)
     with path.open(encoding="utf-8") as stream:
         data = yaml.safe_load(stream)
     if not isinstance(data, dict) or not isinstance(data.get("sections"), list):
@@ -100,4 +115,3 @@ def collect_facts(resume: dict[str, Any]) -> dict[str, dict[str, Any]]:
             for fact in entry.get("facts", []):
                 facts[fact["id"]] = fact
     return facts
-

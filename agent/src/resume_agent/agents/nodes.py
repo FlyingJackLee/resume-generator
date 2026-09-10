@@ -15,11 +15,13 @@ from resume_agent.models import (
     MatchReport,
     ResumePatch,
     RewriteStrategy,
+    ValidationIssue,
 )
 from resume_agent.prompts import PromptRepository
 from resume_agent.providers import StructuredProvider
 from resume_agent.services.catalog import editable_catalog
 from resume_agent.services.master_resume import collect_facts
+from resume_agent.services.resume_labels import path_label
 from resume_agent.services.strategy_validator import validate_strategy
 
 
@@ -133,6 +135,7 @@ class AgentNodes:
         feedback = {
             "fact_validation": state.get("fact_validation"),
             "hiring_evaluation": state.get("hiring_evaluation"),
+            "patch_validation": state.get("patch_validation"),
         }
         previous_patch = state.get("editor_patch")
         previous_patch_block = (
@@ -157,15 +160,48 @@ class AgentNodes:
         )
         strategy = RewriteStrategy.model_validate(state["approved_strategy"])
         allowed = {action.target_path: set(action.supported_by) for action in strategy.actions}
+        issues: list[ValidationIssue] = []
         for operation in patch.operations:
+            label = path_label(state["original_resume"], operation.path)
             if operation.path not in allowed:
-                raise ResumeAgentError(f"Editor 偏离 approved_strategy：{operation.path}")
-            if set(operation.supported_by) - allowed[operation.path]:
-                raise ResumeAgentError(f"Editor 使用了策略未批准的 facts：{operation.path}")
+                issues.append(
+                    ValidationIssue(
+                        code="P01",
+                        severity="critical",
+                        path=operation.path,
+                        message=f"Editor 想修改「{label}」，但这个字段不在批准的策略范围内",
+                    )
+                )
+                continue
+            disallowed = sorted(set(operation.supported_by) - allowed[operation.path])
+            if disallowed:
+                issues.append(
+                    ValidationIssue(
+                        code="P02",
+                        severity="critical",
+                        path=operation.path,
+                        message=f"Editor 给「{label}」引用了未获批准的事实来源",
+                    )
+                )
+        iteration = state.get("iteration", 0) + 1
+        if issues:
+            logger.warning(
+                "edit_resume patch violated approved strategy run_id=%s iteration=%s issues=%s",
+                state.get("run_id"),
+                iteration,
+                [issue.model_dump() for issue in issues],
+            )
+            return {
+                "editor_patch": patch.model_dump(),
+                "patch_validation": {"passed": False, "issues": [issue.model_dump() for issue in issues]},
+                "iteration": iteration,
+                "status": "REVISING",
+            }
         self._completed("edit_resume", patch)
         return {
             "editor_patch": patch.model_dump(),
-            "iteration": state.get("iteration", 0) + 1,
+            "patch_validation": {"passed": True, "issues": []},
+            "iteration": iteration,
             "status": "APPLYING_PATCH",
         }
 

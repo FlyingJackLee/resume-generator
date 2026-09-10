@@ -5,9 +5,8 @@ from typing import Any
 
 # Entries sections whose order is a convention, not a relevance ranking — work
 # history reads reverse-chronologically and reordering it looks like career
-# dishonesty to a reviewer. Individual entries within it can still be
-# hidden/restored/rewritten; only whole-container reordering is disallowed.
-NON_REORDERABLE_ENTRY_SECTIONS = {"work"}
+# dishonesty to a reviewer. `org_first` is the resume-schema marker for this
+# section; using it avoids coupling the rule to a particular resume's section ID.
 
 
 def editable_catalog(resume: dict[str, Any]) -> list[dict[str, Any]]:
@@ -20,7 +19,7 @@ def editable_catalog(resume: dict[str, Any]) -> list[dict[str, Any]]:
             catalog.append({"path": f"{section_path}/rows", "kind": "collection"})
         for row in section.get("rows", []):
             catalog.append({"path": f"{section_path}/rows/{row['id']}/items", "kind": "text"})
-        if section.get("entries") and section["id"] not in NON_REORDERABLE_ENTRY_SECTIONS:
+        if section.get("entries") and not section.get("org_first"):
             catalog.append({"path": f"{section_path}/entries", "kind": "collection"})
         for entry in section.get("entries", []):
             entry_path = f"{section_path}/entries/{entry['id']}"
@@ -34,4 +33,3 @@ def editable_catalog(resume: dict[str, Any]) -> list[dict[str, Any]]:
                 for item in values:
                     catalog.append({"path": f"{entry_path}/{collection}/{item['id']}", "kind": "text_hideable"})
     return catalog
-

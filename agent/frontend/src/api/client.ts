@@ -95,6 +95,50 @@ export function createRun(payload: {
   return request(BASE, { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export function createEditorDraft(label = '在线编辑草稿'): Promise<RunMetadata> {
+  return request('/api/v1/resume/editor-drafts', {
+    method: 'POST',
+    body: JSON.stringify({ label }),
+  })
+}
+
+export function getEditorDraft(runId: string): Promise<Record<string, unknown>> {
+  return request(`/api/v1/resume/editor-drafts/${runId}`)
+}
+
+export function updateEditorDraft(runId: string, resume: Record<string, unknown>): Promise<RunMetadata> {
+  return request(`/api/v1/resume/editor-drafts/${runId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ resume }),
+  })
+}
+export interface ResumeImportResult { resume: Record<string, unknown>; source_languages: Array<'zh' | 'en'>; warnings: string[]; extraction_method: string }
+export async function importEditorResume(runId: string, file: File): Promise<ResumeImportResult> {
+  const form = new FormData(); form.append('file', file)
+  const response = await fetch(`/api/v1/resume/editor-drafts/${runId}/import`, { method: 'POST', body: form })
+  if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.detail ?? '简历导入失败') }
+  return response.json() as Promise<ResumeImportResult>
+}
+
+export interface EditorVersion { id: string; filename: string; message: string; created_at: string }
+export function getEditorVersions(runId: string): Promise<EditorVersion[]> { return request(`/api/v1/resume/editor-drafts/${runId}/versions`) }
+export function getEditorExternalChange(runId: string): Promise<{ changed: boolean }> { return request(`/api/v1/resume/editor-drafts/${runId}/external-change`) }
+export function resolveEditorExternalChange(runId: string, action: 'reload' | 'keep'): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/external-change`, { method: 'POST', body: JSON.stringify({ action }) }) }
+export function publishEditorDraft(runId: string, message: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/publish`, { method: 'POST', body: JSON.stringify({ message }) }) }
+export function rollbackEditorVersion(runId: string, versionId: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/rollback/${versionId}`, { method: 'POST' }) }
+export function getApprovedSnapshotStatus(runId: string): Promise<{ exists: boolean }> { return request(`/api/v1/resume/editor-drafts/${runId}/approved-snapshot`) }
+export function restoreApprovedSnapshot(runId: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/approved-snapshot/restore`, { method: 'POST' }) }
+export function editorDownloadUrl(runId: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string { return `/api/v1/resume/editor-drafts/${runId}/download/${format}/${lang}` }
+export function originalYamlDownloadUrl(runId: string): string { return `/api/v1/resume/editor-drafts/${runId}/download/original-yaml` }
+
+export interface ResumeTemplate { id: string; name: string; description: string; builtin: boolean; active: boolean; unsupported: string[] }
+export function listTemplates(): Promise<ResumeTemplate[]> { return request('/api/v1/resume/templates') }
+export function setActiveTemplate(templateId: string): Promise<ResumeTemplate> { return request('/api/v1/resume/templates/active', { method: 'POST', body: JSON.stringify({ template_id: templateId }) }) }
+export function deleteTemplate(templateId: string): Promise<void> { return fetch(`/api/v1/resume/templates/${templateId}`, { method: 'DELETE' }).then((r) => { if (!r.ok) throw new Error('删除模板失败') }) }
+export function renameTemplate(templateId: string, name: string): Promise<ResumeTemplate> { return request(`/api/v1/resume/templates/${templateId}`, { method: 'PATCH', body: JSON.stringify({ name }) }) }
+export function copyTemplate(sourceId: string, templateId: string, name: string): Promise<ResumeTemplate> { return request('/api/v1/resume/templates/copy', { method: 'POST', body: JSON.stringify({ source_id: sourceId, template_id: templateId, name }) }) }
+export async function importTemplate(file: File): Promise<ResumeTemplate> { const form = new FormData(); form.append('file', file); const response = await fetch('/api/v1/resume/templates/import', { method: 'POST', body: form }); if (!response.ok) { const body = await response.json().catch(() => null); throw new Error(body?.detail ?? '导入模板失败') } return response.json() as Promise<ResumeTemplate> }
+
 export function updateNotes(runId: string, notes: string): Promise<RunMetadata> {
   return request(`${BASE}/${runId}/notes`, {
     method: 'POST',
@@ -108,4 +152,12 @@ export function runStreamUrl(runId: string): string {
 
 export function previewUrl(token: string, lang: 'zh' | 'en'): string {
   return `/preview/${token}?lang=${lang}`
+}
+
+export function previewDownloadUrl(token: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string {
+  return `/preview/${token}/download/${format}/${lang}`
+}
+
+export function previewYamlDownloadUrl(token: string): string {
+  return `/preview/${token}/download/yaml`
 }

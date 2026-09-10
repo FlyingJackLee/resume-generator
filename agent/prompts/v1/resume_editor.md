@@ -25,8 +25,19 @@ Each operation's supported_by must be an exact subset of the supported_by facts 
 approved strategy listed for that operation's own path — never a fact ID approved for a
 different path, even if that fact would better justify a term you want to add.
 
-If PREVIOUS_FEEDBACK is present, this is a rework pass. fact_validation.issues names
-specific failing paths — for any path it does not name, copy your PREVIOUS_PATCH
+If PREVIOUS_FEEDBACK is present, this is a rework pass. patch_validation.issues (when
+present) flags rule violations in your own PREVIOUS_PATCH, keyed by path and code: P01
+means that path was never part of the approved strategy at all — drop that operation
+entirely this time, do not reuse or reinvent it. P02 means that path's operation cited a
+supported_by fact ID the strategy never approved for it — keep the same op and result
+for that path, but rebuild supported_by using only the fact IDs the approved action
+actually lists; if none of those facts can honestly support the text you wrote, first
+trim the text to what they do support before dropping the operation. Every other path
+PREVIOUS_PATCH touched (not named by a patch_validation issue) — copy that operation
+exactly as-is, byte-for-byte including supported_by.
+
+fact_validation.issues names specific failing paths — for any path it does not name,
+copy your PREVIOUS_PATCH
 operation exactly as-is, including its supported_by; do not revise, re-derive, or add
 facts to a path it did not flag, no matter how tempting a term looks. hiring_evaluation
 feedback is holistic prose, not a path list — it is fine to revise multiple paths in

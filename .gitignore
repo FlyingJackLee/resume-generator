@@ -18,9 +18,15 @@ htmlcov/
 
 # Generated resume output
 /web/build/
+/web/data/resume.yaml
 /agent/data/runs/*
 !/agent/data/runs/.gitkeep
 /agent/data/logs/
+/agent/data/templates/
+/agent/data/master_export/
+
+# Local-only archives and planning material
+/local-archive/
 
 # Editors and operating systems
 .idea/

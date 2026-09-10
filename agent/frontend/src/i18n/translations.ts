@@ -2,6 +2,10 @@ export interface Translations {
   nav: {
     logo: string
     runs: string
+    agentSection: string
+    onlineSection: string
+    onlineEditor: string
+    templates: string
     resumeViewer: string
     masterResumeSection: string
     masterResume: string
@@ -42,7 +46,9 @@ export interface Translations {
     currentStage: string
     round: string
     generated: string
+    viewInViewer: string
     runFailed: string
+    errorTypes: { FactValidationError: string; StrategyComplianceError: string }
     retry: { button: string; retrying: string }
     jumpToCurrent: string
     compileStepPlaceholder: string
@@ -136,6 +142,7 @@ export interface Translations {
     restore: string
     reject: string
     advanced: string
+    previewTitle: string
   }
   patchBuilder: {
     advancedTitle: string
@@ -168,16 +175,22 @@ export interface Translations {
     version: string
     masterResumeOption: string
     pendingApproval: string
+    edit: string
+    download: { yaml: string; html: string; pdf: string }
   }
 }
 
 const zh: Translations = {
   nav: {
     logo: 'Resume Agent',
-    runs: 'Runs',
-    resumeViewer: '在线查看',
+    runs: 'ATS JD 匹配',
+    agentSection: '智能优化',
+    onlineSection: '在线简历',
+    onlineEditor: '修改基线版本',
+    templates: '模板管理',
+    resumeViewer: '所有版本',
     masterResumeSection: 'MASTER RESUME',
-    masterResume: 'Master Resume',
+    masterResume: '基线简历',
     sidebarUser: 'Resume Agent',
   },
   runsList: {
@@ -220,7 +233,12 @@ const zh: Translations = {
     currentStage: '当前阶段：',
     round: '第 {n} 轮',
     generated: '已生成：{file}',
+    viewInViewer: '在 Viewer 中查看 / 编辑',
     runFailed: '运行失败',
+    errorTypes: {
+      FactValidationError: '多轮修改后，AI 仍无法在不越界的前提下满足评分要求，需要你确认下方的具体问题。',
+      StrategyComplianceError: 'AI 在改写时多次引用了未获批准的经历内容，为了不让简历出现"查无实据"的内容，已自动停下来，需要你确认下方的具体问题。',
+    },
     retry: { button: '重试', retrying: '重试中…' },
     jumpToCurrent: '回到当前步骤',
     compileStepPlaceholder: '这一步没有独立产出可看，请查看 Fact Validator / Hiring Manager 或最终 Diff。',
@@ -314,6 +332,7 @@ const zh: Translations = {
     restore: '恢复完整原始版本',
     reject: '拒绝本次版本',
     advanced: '高级：人工微调',
+    previewTitle: '候选简历预览',
   },
   patchBuilder: {
     advancedTitle: '高级：人工微调',
@@ -341,11 +360,13 @@ const zh: Translations = {
     validationError: '替换操作需要填写中英文内容、修改理由，并至少选择一条支撑事实。',
   },
   resumeViewer: {
-    title: '在线查看',
-    subtitle: '预览生成的简历，切换版本或语言查看不同的产出。',
+    title: '所有版本',
+    subtitle: '查看基线 Master Resume 与已完成的目标简历版本。',
     version: '版本',
     masterResumeOption: 'Master Resume（基准）',
     pendingApproval: '（待批准，预览候选版本）',
+    edit: '编辑',
+    download: { yaml: '原始 YAML', html: 'HTML', pdf: 'PDF' },
   },
 }
 
@@ -353,6 +374,10 @@ const en: Translations = {
   nav: {
     logo: 'Resume Agent',
     runs: 'Runs',
+    agentSection: 'AGENT WORKBENCH',
+    onlineSection: 'ONLINE RESUME',
+    onlineEditor: 'Resume Editor',
+    templates: 'Templates',
     resumeViewer: 'Resume Viewer',
     masterResumeSection: 'MASTER RESUME',
     masterResume: 'Master Resume',
@@ -398,7 +423,12 @@ const en: Translations = {
     currentStage: 'Current stage: ',
     round: 'Round {n}',
     generated: 'Generated: {file}',
+    viewInViewer: 'View / edit in Viewer',
     runFailed: 'Run Failed',
+    errorTypes: {
+      FactValidationError: 'After several rework passes, the AI still could not meet the scoring bar without overstating your experience — please review the specific issues below.',
+      StrategyComplianceError: "The AI repeatedly cited experience it wasn't approved to use while rewriting, so it stopped itself rather than add anything unverifiable — please review the specific issues below.",
+    },
     retry: { button: 'Retry', retrying: 'Retrying…' },
     jumpToCurrent: 'Jump to current step',
     compileStepPlaceholder: 'No standalone output for this step — see Fact Validator / Hiring Manager or the final diff.',
@@ -492,6 +522,7 @@ const en: Translations = {
     restore: 'Restore Original',
     reject: 'Reject This Version',
     advanced: 'Advanced: Manual Edit',
+    previewTitle: 'Candidate resume preview',
   },
   patchBuilder: {
     advancedTitle: 'Advanced: Manual Edit',
@@ -524,6 +555,8 @@ const en: Translations = {
     version: 'Version',
     masterResumeOption: 'Master Resume (baseline)',
     pendingApproval: '(pending approval, previewing candidate)',
+    edit: 'Edit',
+    download: { yaml: 'Original YAML', html: 'HTML', pdf: 'PDF' },
   },
 }
 

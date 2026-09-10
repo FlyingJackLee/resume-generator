@@ -37,8 +37,9 @@ def export_pdf(html_path: Path, pdf_path: Path, footer_label: str):
             browser.close()
 
 
-def build_one(lang: str, html_only: bool = False):
-    data = load_data()
+def build_one(lang: str, html_only: bool = False, data_path: str | Path | None = None):
+    """Build one localized resume; tests may provide the tracked sample fixture."""
+    data = load_data(data_path or "data/resume.yaml")
     BUILD_DIR.mkdir(exist_ok=True)
     html = render_html(data, lang)
     html_path = BUILD_DIR / f"resume.{lang}.html"

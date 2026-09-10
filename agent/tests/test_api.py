@@ -7,6 +7,8 @@ from fakes import HappyProvider
 from resume_agent.api.main import create_app
 from resume_agent.config import Settings
 from resume_agent.models import ResumePatch, RewriteStrategy
+from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
+from resume_agent.services import load_master_resume, prepare_working_resume
 from resume_agent.services.workflow_service import WorkflowService
 
 from test_workflow_service import make_service
@@ -186,6 +188,13 @@ def test_run_artifacts_endpoint_reveals_artifacts_progressively(tmp_path):
 
 
 class ReorderProvider(HappyProvider):
+    def __init__(self):
+        super().__init__()
+        working = prepare_working_resume(load_master_resume(MASTER_RESUME_SAMPLE_PATH))
+        projects = next(section for section in working["sections"] if section["id"] == "projects")
+        self.project_path = f"/sections/{projects['id']}/entries"
+        self.project_ids = [entry["id"] for entry in projects["entries"]]
+
     def complete(self, *, system, user, output_type, temperature):
         if output_type is RewriteStrategy:
             self.calls.append(output_type.__name__)
@@ -204,7 +213,7 @@ class ReorderProvider(HappyProvider):
                         },
                         {
                             "action": "reorder",
-                            "target_path": "/sections/projects/entries",
+                            "target_path": self.project_path,
                             "priority": 2,
                             "instruction": "Put the most relevant project first",
                             "supported_by": [],
@@ -226,14 +235,8 @@ class ReorderProvider(HappyProvider):
                         },
                         {
                             "op": "reorder",
-                            "path": "/sections/projects/entries",
-                            "value": [
-                                "backend_development",
-                                "full_stack_development",
-                                "system_architecture_core_development_3",
-                                "ai_agent_full_stack_development",
-                                "system_architecture_core_development",
-                            ],
+                            "path": self.project_path,
+                            "value": list(reversed(self.project_ids)),
                         },
                     ]
                 }
@@ -252,7 +255,8 @@ def _entry_order(catalog: list[dict], collection_path: str) -> list[str]:
 
 def test_structure_endpoint_candidate_source_reflects_reorder(tmp_path):
     settings = Settings(api_key="fake", hiring_threshold=85, max_iterations=2)
-    service = WorkflowService(ReorderProvider(), settings, runs_root=tmp_path)
+    provider = ReorderProvider()
+    service = WorkflowService(provider, settings, runs_root=tmp_path, master_path=MASTER_RESUME_SAMPLE_PATH)
 
     async def scenario():
         transport = httpx.ASGITransport(app=create_app(lambda: service))
@@ -284,22 +288,10 @@ def test_structure_endpoint_candidate_source_reflects_reorder(tmp_path):
                 )
             ).json()
 
-            input_order = _entry_order(input_catalog, "/sections/projects/entries")
-            candidate_order = _entry_order(candidate_catalog, "/sections/projects/entries")
-            assert input_order == [
-                "system_architecture_core_development",
-                "ai_agent_full_stack_development",
-                "system_architecture_core_development_3",
-                "full_stack_development",
-                "backend_development",
-            ]
-            assert candidate_order == [
-                "backend_development",
-                "full_stack_development",
-                "system_architecture_core_development_3",
-                "ai_agent_full_stack_development",
-                "system_architecture_core_development",
-            ]
+            input_order = _entry_order(input_catalog, provider.project_path)
+            candidate_order = _entry_order(candidate_catalog, provider.project_path)
+            assert input_order == provider.project_ids
+            assert candidate_order == list(reversed(provider.project_ids))
             assert set(input_order) == set(candidate_order)
     asyncio.run(scenario())
 

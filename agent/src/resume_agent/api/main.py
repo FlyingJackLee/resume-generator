@@ -5,12 +5,14 @@ import json
 import logging
 from contextlib import asynccontextmanager
 from functools import lru_cache
+from pathlib import Path
 from threading import Thread
 from typing import Annotated, Callable
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from resume_agent.config import get_settings
@@ -19,11 +21,18 @@ from resume_agent.logging_config import configure_logging
 from resume_agent.models import ManualEditRequest, RewriteStrategy, StrategyDecision
 from resume_agent.providers import OpenAICompatibleProvider
 from resume_agent.services.catalog import editable_catalog
-from resume_agent.services.master_resume import collect_facts
-from resume_agent.services.preview_service import render_master_preview, render_run_preview
+from resume_agent.services.master_resume import collect_facts, ensure_master_resume
+from resume_agent.services.preview_service import (
+    _render,
+    render_master_preview,
+    render_run_preview,
+    resolve_run_preview_source,
+)
 from resume_agent.services.resume_labels import path_label as _path_label
 from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
+from resume_agent.services.template_service import TemplateService
+from resume_agent.paths import MASTER_EXPORT_DIR, MASTER_RESUME_PATH, TEMPLATES_ROOT
 
 
 logger = logging.getLogger(__name__)
@@ -56,6 +65,44 @@ class CreateRunRequest(BaseModel):
 class NotesRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     notes: str = Field(default="", max_length=20_000)
+
+
+class EditorDraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    label: str = Field(default="在线编辑草稿", min_length=1, max_length=120)
+
+
+class EditorDraftUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    resume: dict
+
+
+MAX_RESUME_IMPORT_BYTES = 15 * 1024 * 1024
+
+
+class EditorConflictRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str
+
+
+class EditorPublishRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    message: str = Field(default="发布版本", min_length=1, max_length=200)
+
+
+class ActiveTemplateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    template_id: str
+
+
+class TemplateNameRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+
+
+class CopyTemplateRequest(TemplateNameRequest):
+    source_id: str
+    template_id: str
 
 
 @lru_cache
@@ -91,6 +138,7 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        ensure_master_resume(current_workflow().master_path)
         task = asyncio.create_task(auto_approve_loop())
         try:
             yield
@@ -103,6 +151,10 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         allow_origins=DEV_ORIGINS,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    TEMPLATES_ROOT.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/api/v1/resume/template-assets", StaticFiles(directory=str(TEMPLATES_ROOT)), name="template-assets"
     )
     if service_factory is not None:
         async def override_workflow() -> WorkflowService:
@@ -119,6 +171,139 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         metadata = workflow.create(payload.jd_label, payload.job_description, payload.company)
         launch(workflow.analyze, metadata["run_id"])
         return metadata
+
+    @app.post("/api/v1/resume/editor-drafts", status_code=201)
+    async def create_editor_draft(payload: EditorDraftRequest, workflow: ServiceDep):
+        return workflow.get_or_create_editor_draft(payload.label)
+
+    @app.get("/api/v1/resume/templates")
+    async def list_templates():
+        return TemplateService().list()
+
+    @app.post("/api/v1/resume/templates/active")
+    async def set_active_template(payload: ActiveTemplateRequest):
+        return TemplateService().set_active(payload.template_id)
+
+    @app.post("/api/v1/resume/templates/import", status_code=201)
+    async def import_template(file: UploadFile = File(...)):
+        if not file.filename or not file.filename.endswith(".zip"):
+            raise ResumeAgentError("请上传 ZIP 模板包")
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".zip") as temporary:
+            temporary.write(await file.read())
+            temporary.flush()
+            return TemplateService().import_zip(Path(temporary.name))
+
+    @app.delete("/api/v1/resume/templates/{template_id}", status_code=204)
+    async def delete_template(template_id: str):
+        TemplateService().delete(template_id)
+
+    @app.patch("/api/v1/resume/templates/{template_id}")
+    async def rename_template(template_id: str, payload: TemplateNameRequest):
+        return TemplateService().rename(template_id, payload.name)
+
+    @app.post("/api/v1/resume/templates/copy", status_code=201)
+    async def copy_template(payload: CopyTemplateRequest):
+        return TemplateService().copy(payload.source_id, payload.template_id, payload.name)
+
+    @app.get("/api/v1/resume/templates/{template_id}/export")
+    async def export_template(template_id: str):
+        return StreamingResponse(
+            iter([TemplateService().export_zip(template_id)]),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{template_id}.zip"'},
+        )
+
+    @app.get("/api/v1/resume/templates/specification")
+    async def template_specification():
+        return FileResponse(PROJECT_ROOT / "docs" / "template-package-spec.md", filename="resume-template-package-spec.md", media_type="text/markdown")
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}")
+    async def get_editor_draft(run_id: str, workflow: ServiceDep):
+        return workflow.get_editor_draft(run_id)
+
+    @app.put("/api/v1/resume/editor-drafts/{run_id}")
+    async def update_editor_draft(
+        run_id: str, payload: EditorDraftUpdateRequest, workflow: ServiceDep
+    ):
+        return workflow.update_editor_draft(run_id, payload.resume)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/import")
+    async def import_editor_resume(run_id: str, workflow: ServiceDep, file: UploadFile = File(...)):
+        if not file.filename:
+            raise ResumeAgentError("请选择简历文件")
+        suffix = Path(file.filename).suffix.lower()
+        if suffix not in {".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".yaml", ".yml"}:
+            raise ResumeAgentError("仅支持 PDF、DOCX、PNG、JPG、WEBP 或 YAML 简历")
+        payload = await file.read(MAX_RESUME_IMPORT_BYTES + 1)
+        if len(payload) > MAX_RESUME_IMPORT_BYTES:
+            raise ResumeAgentError("简历文件不能超过 15 MB")
+        if not payload:
+            raise ResumeAgentError("上传文件为空")
+        return workflow.import_editor_resume(run_id, file.filename, payload)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/versions")
+    async def editor_versions(run_id: str, workflow: ServiceDep):
+        return workflow.editor_versions(run_id)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/external-change")
+    async def editor_external_change(run_id: str, workflow: ServiceDep):
+        return workflow.editor_external_change(run_id)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/external-change")
+    async def resolve_editor_external_change(
+        run_id: str, payload: EditorConflictRequest, workflow: ServiceDep
+    ):
+        return workflow.resolve_editor_external_change(run_id, payload.action)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/publish")
+    async def publish_editor_draft(
+        run_id: str, payload: EditorPublishRequest, workflow: ServiceDep
+    ):
+        return workflow.publish_editor_draft(run_id, payload.message)
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/rollback/{version_id}")
+    async def rollback_editor_version(run_id: str, version_id: str, workflow: ServiceDep):
+        return workflow.rollback_editor_version(run_id, version_id)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/approved-snapshot")
+    async def approved_snapshot_status(run_id: str, workflow: ServiceDep):
+        return {"exists": workflow.has_approved_snapshot(run_id)}
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/approved-snapshot/restore")
+    async def restore_approved_snapshot(run_id: str, workflow: ServiceDep):
+        return workflow.restore_approved_snapshot(run_id)
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/download/{format}/{lang}")
+    def download_editor_draft(run_id: str, format: str, lang: str, workflow: ServiceDep):
+        # Plain `def`, not `async def`: PDF export calls playwright's sync API
+        # (export_pdf), which refuses to run on the asyncio event loop an
+        # `async def` handler executes on. A sync def gets threadpool-offloaded
+        # by Starlette instead, where sync_playwright() is legal.
+        if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
+            raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
+        try:
+            run_dir = workflow.resolve_run(run_id)
+            resume = workflow.get_editor_draft(run_id)
+            html_path = run_dir / f"resume.{lang}.html"
+            html_path.write_text(_render(run_dir / "editor_resume.yaml", lang), encoding="utf-8")
+            if format == "html":
+                return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
+            from resume_render import localize
+            from build import export_pdf
+            pdf_path = run_dir / f"resume.{lang}.pdf"
+            export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        except ResumeAgentError:
+            raise
+        except Exception:
+            logger.exception("download_editor_draft failed run_id=%s format=%s lang=%s", run_id, format, lang)
+            raise
+        return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
+
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/download/original-yaml")
+    async def download_original_yaml(run_id: str, workflow: ServiceDep):
+        workflow.get_editor_draft(run_id)  # validates this is the singleton editor draft
+        return FileResponse(workflow.master_path, filename="resume.yaml", media_type="application/x-yaml")
 
     @app.get("/api/v1/resume/runs")
     async def list_runs(workflow: ServiceDep, page: int = 1, page_size: int = 20):
@@ -202,6 +387,43 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         run_dir = workflow.resolve_run(token)
         metadata = workflow.get(token)
         return render_run_preview(run_dir, metadata, lang)
+
+    def _resolve_preview_source(token: str, workflow: WorkflowService) -> tuple[Path, Path]:
+        """(source_yaml_path, scratch_dir to write generated files into) for a preview token."""
+        if token == "master":
+            MASTER_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+            return MASTER_RESUME_PATH, MASTER_EXPORT_DIR
+        run_dir = workflow.resolve_run(token)
+        metadata = workflow.get(token)
+        return resolve_run_preview_source(run_dir, metadata), run_dir
+
+    @app.get("/preview/{token}/download/{format}/{lang}")
+    def download_preview(token: str, format: str, lang: str, workflow: ServiceDep):
+        # Plain `def` — see download_editor_draft above for why.
+        if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
+            raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
+        try:
+            source_path, scratch_dir = _resolve_preview_source(token, workflow)
+            html_path = scratch_dir / f"resume.{lang}.html"
+            html_path.write_text(_render(source_path, lang), encoding="utf-8")
+            if format == "html":
+                return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
+            from resume_render import load_data, localize
+            from build import export_pdf
+            resume = load_data(path=source_path)
+            pdf_path = scratch_dir / f"resume.{lang}.pdf"
+            export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        except ResumeAgentError:
+            raise
+        except Exception:
+            logger.exception("download_preview failed token=%s format=%s lang=%s", token, format, lang)
+            raise
+        return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
+
+    @app.get("/preview/{token}/download/yaml")
+    async def download_preview_yaml(token: str, workflow: ServiceDep):
+        source_path, _ = _resolve_preview_source(token, workflow)
+        return FileResponse(source_path, filename="resume.yaml", media_type="application/x-yaml")
 
     @app.post("/api/v1/resume/runs/{run_id}/retry", status_code=202)
     async def retry_run(run_id: str, workflow: ServiceDep):

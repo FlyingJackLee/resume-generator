@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
   getRun,
   getRunArtifacts,
@@ -154,6 +154,9 @@ export default function RunDetailPage() {
           {run.status === 'COMPLETED' && run.target_file && (
             <div className="card callout">
               <p>{t('runDetail.generated', { file: run.target_file })}</p>
+              <Link className="button secondary" to={`/viewer?token=${run.run_id}`}>
+                {t('runDetail.viewInViewer')}
+              </Link>
             </div>
           )}
 

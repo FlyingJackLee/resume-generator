@@ -126,6 +126,8 @@ export function getEditorExternalChange(runId: string): Promise<{ changed: boole
 export function resolveEditorExternalChange(runId: string, action: 'reload' | 'keep'): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/external-change`, { method: 'POST', body: JSON.stringify({ action }) }) }
 export function publishEditorDraft(runId: string, message: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/publish`, { method: 'POST', body: JSON.stringify({ message }) }) }
 export function rollbackEditorVersion(runId: string, versionId: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/rollback/${versionId}`, { method: 'POST' }) }
+export function getApprovedSnapshotStatus(runId: string): Promise<{ exists: boolean }> { return request(`/api/v1/resume/editor-drafts/${runId}/approved-snapshot`) }
+export function restoreApprovedSnapshot(runId: string): Promise<RunMetadata> { return request(`/api/v1/resume/editor-drafts/${runId}/approved-snapshot/restore`, { method: 'POST' }) }
 export function editorDownloadUrl(runId: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string { return `/api/v1/resume/editor-drafts/${runId}/download/${format}/${lang}` }
 export function originalYamlDownloadUrl(runId: string): string { return `/api/v1/resume/editor-drafts/${runId}/download/original-yaml` }
 

@@ -1,7 +1,11 @@
 import json
 import time
 
+import pytest
+import yaml
+
 from resume_agent.config import Settings
+from resume_agent.errors import ResumeAgentError
 from resume_agent.models import ResumePatch, RewriteStrategy
 from resume_agent.paths import MASTER_RESUME_SAMPLE_PATH
 from resume_agent.services.run_store import read_json, read_yaml
@@ -36,6 +40,53 @@ def test_two_human_gates_and_named_final_output(tmp_path):
     assert completed["status"] == "COMPLETED"
     assert completed["target_file"] == "google_ai_agent_resume.yaml"
     assert (service.resolve_run(run_id) / completed["target_file"]).exists()
+
+
+def _completed_run(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "We need a senior engineer to build reliable AI agents.")["run_id"]
+    service.analyze(run_id)
+    service.approve_strategy(run_id)
+    service.compile(run_id)
+    completed = service.approve_final(run_id)
+    return service, run_id, completed["target_file"]
+
+
+def test_completed_run_is_editable_and_only_touches_its_own_file(tmp_path):
+    service, run_id, target_file = _completed_run(tmp_path)
+    run_dir = service.resolve_run(run_id)
+
+    assert service.has_approved_snapshot(run_id)
+    draft = service.get_editor_draft(run_id)
+    draft["meta"]["name"] = {"zh": "手动改名", "en": "Manually Renamed"}
+    service.update_editor_draft(run_id, draft)
+
+    assert read_yaml(run_dir, target_file)["meta"]["name"]["zh"] == "手动改名"
+    master = yaml.safe_load(MASTER_RESUME_SAMPLE_PATH.read_text(encoding="utf-8"))
+    assert master["meta"]["name"]["zh"] != "手动改名"
+
+
+def test_completed_run_can_restore_approved_snapshot(tmp_path):
+    service, run_id, target_file = _completed_run(tmp_path)
+    run_dir = service.resolve_run(run_id)
+    original_name = read_yaml(run_dir, target_file)["meta"]["name"]
+
+    draft = service.get_editor_draft(run_id)
+    draft["meta"]["name"] = {"zh": "手动改名", "en": "Manually Renamed"}
+    service.update_editor_draft(run_id, draft)
+    assert read_yaml(run_dir, target_file)["meta"]["name"]["zh"] == "手动改名"
+
+    service.restore_approved_snapshot(run_id)
+    assert read_yaml(run_dir, target_file)["meta"]["name"] == original_name
+
+
+def test_run_awaiting_approval_is_not_editable_via_editor_draft(tmp_path):
+    service = make_service(tmp_path)
+    run_id = service.create("Google AI Agent", "We need a senior engineer to build reliable AI agents.")["run_id"]
+    service.analyze(run_id)
+    assert service.get(run_id)["status"] == "WAITING_STRATEGY_APPROVAL"
+    with pytest.raises(ResumeAgentError, match="不支持在线编辑"):
+        service.get_editor_draft(run_id)
 
 
 def test_final_cannot_be_approved_before_gate(tmp_path):

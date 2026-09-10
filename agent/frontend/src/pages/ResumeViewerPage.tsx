@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { Download } from 'lucide-react'
+import { Download, Pencil } from 'lucide-react'
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { listRuns, previewDownloadUrl, previewUrl, previewYamlDownloadUrl } from '../api/client'
 import { useTranslation } from '../i18n/LanguageContext'
 
-const VIEWABLE_STATUSES = new Set(['WAITING_FINAL_APPROVAL', 'COMPLETED'])
+// Only COMPLETED runs are listed here: WAITING_FINAL_APPROVAL previews live on
+// the run's own Gate② page now, and only a COMPLETED run's own output file is
+// safe to open in the free-form editor (see ResumeEditorPage).
+const VIEWABLE_STATUSES = new Set(['COMPLETED'])
 
 export default function ResumeViewerPage() {
   const { t } = useTranslation()
@@ -17,7 +20,12 @@ export default function ResumeViewerPage() {
     queryKey: ['runs-for-viewer'],
     queryFn: () => listRuns(1, 100),
   })
-  const viewableRuns = (data?.items ?? []).filter((run) => VIEWABLE_STATUSES.has(run.status))
+  // target_file also filters out the singleton editor draft: it's internally
+  // stored with status COMPLETED too (so generic "is this run done" checks
+  // treat it consistently), but it never has an exported target_file and
+  // isn't a real job-specific version — it already has its own dedicated
+  // "修改基线版本" entry point and would be a confusing duplicate here.
+  const viewableRuns = (data?.items ?? []).filter((run) => VIEWABLE_STATUSES.has(run.status) && run.target_file)
 
   return (
     <div>
@@ -36,7 +44,6 @@ export default function ResumeViewerPage() {
               <option key={run.run_id} value={run.run_id}>
                 {run.jd_label}
                 {run.company ? ` · ${run.company}` : ''}
-                {run.status === 'COMPLETED' ? '' : t('resumeViewer.pendingApproval')}
               </option>
             ))}
           </select>
@@ -50,6 +57,10 @@ export default function ResumeViewerPage() {
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <Link className="button secondary" to={token === 'master' ? '/editor' : `/editor/${token}`}>
+            <Pencil size={16} />
+            {t('resumeViewer.edit')}
+          </Link>
           <a className="button secondary" href={previewYamlDownloadUrl(token)}>
             <Download size={16} />
             {t('resumeViewer.download.yaml')}

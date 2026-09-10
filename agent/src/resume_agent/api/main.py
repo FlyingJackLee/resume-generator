@@ -266,6 +266,14 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
     async def rollback_editor_version(run_id: str, version_id: str, workflow: ServiceDep):
         return workflow.rollback_editor_version(run_id, version_id)
 
+    @app.get("/api/v1/resume/editor-drafts/{run_id}/approved-snapshot")
+    async def approved_snapshot_status(run_id: str, workflow: ServiceDep):
+        return {"exists": workflow.has_approved_snapshot(run_id)}
+
+    @app.post("/api/v1/resume/editor-drafts/{run_id}/approved-snapshot/restore")
+    async def restore_approved_snapshot(run_id: str, workflow: ServiceDep):
+        return workflow.restore_approved_snapshot(run_id)
+
     @app.get("/api/v1/resume/editor-drafts/{run_id}/download/{format}/{lang}")
     def download_editor_draft(run_id: str, format: str, lang: str, workflow: ServiceDep):
         # Plain `def`, not `async def`: PDF export calls playwright's sync API
@@ -274,16 +282,22 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         # by Starlette instead, where sync_playwright() is legal.
         if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
             raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
-        run_dir = workflow.resolve_run(run_id)
-        resume = workflow.get_editor_draft(run_id)
-        html_path = run_dir / f"resume.{lang}.html"
-        html_path.write_text(_render(run_dir / "editor_resume.yaml", lang), encoding="utf-8")
-        if format == "html":
-            return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
-        from resume_render import localize
-        from build import export_pdf
-        pdf_path = run_dir / f"resume.{lang}.pdf"
-        export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        try:
+            run_dir = workflow.resolve_run(run_id)
+            resume = workflow.get_editor_draft(run_id)
+            html_path = run_dir / f"resume.{lang}.html"
+            html_path.write_text(_render(run_dir / "editor_resume.yaml", lang), encoding="utf-8")
+            if format == "html":
+                return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
+            from resume_render import localize
+            from build import export_pdf
+            pdf_path = run_dir / f"resume.{lang}.pdf"
+            export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        except ResumeAgentError:
+            raise
+        except Exception:
+            logger.exception("download_editor_draft failed run_id=%s format=%s lang=%s", run_id, format, lang)
+            raise
         return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
 
     @app.get("/api/v1/resume/editor-drafts/{run_id}/download/original-yaml")
@@ -388,16 +402,22 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         # Plain `def` — see download_editor_draft above for why.
         if format not in {"html", "pdf"} or lang not in {"zh", "en"}:
             raise ResumeAgentError("仅支持下载中文或英文的 HTML / PDF")
-        source_path, scratch_dir = _resolve_preview_source(token, workflow)
-        html_path = scratch_dir / f"resume.{lang}.html"
-        html_path.write_text(_render(source_path, lang), encoding="utf-8")
-        if format == "html":
-            return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
-        from resume_render import load_data, localize
-        from build import export_pdf
-        resume = load_data(path=source_path)
-        pdf_path = scratch_dir / f"resume.{lang}.pdf"
-        export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        try:
+            source_path, scratch_dir = _resolve_preview_source(token, workflow)
+            html_path = scratch_dir / f"resume.{lang}.html"
+            html_path.write_text(_render(source_path, lang), encoding="utf-8")
+            if format == "html":
+                return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
+            from resume_render import load_data, localize
+            from build import export_pdf
+            resume = load_data(path=source_path)
+            pdf_path = scratch_dir / f"resume.{lang}.pdf"
+            export_pdf(html_path, pdf_path, localize(resume["meta"]["footer_label"], lang))
+        except ResumeAgentError:
+            raise
+        except Exception:
+            logger.exception("download_preview failed token=%s format=%s lang=%s", token, format, lang)
+            raise
         return FileResponse(pdf_path, filename=f"resume.{lang}.pdf", media_type="application/pdf")
 
     @app.get("/preview/{token}/download/yaml")

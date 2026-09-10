@@ -28,13 +28,6 @@ export default function App() {
             <FileText size={16} />
             {t('nav.resumeViewer')}
           </NavLink>
-        </nav>
-        <div className="sidebar-section-label">{t('nav.masterResumeSection')}</div>
-        <nav className="sidebar-nav">
-          <NavLink to="/viewer?token=master">
-            <FileText size={16} />
-            {t('nav.masterResume')}
-          </NavLink>
           <NavLink to="/templates">
             <Palette size={16} />
             {t('nav.templates')}
@@ -69,6 +62,7 @@ export default function App() {
           <Route path="/runs/:runId" element={<RunDetailPage />} />
           <Route path="/viewer" element={<ResumeViewerPage />} />
           <Route path="/editor" element={<ResumeEditorPage />} />
+          <Route path="/editor/:runId" element={<ResumeEditorPage />} />
           <Route path="/templates" element={<TemplatesPage />} />
         </Routes>
       </main>

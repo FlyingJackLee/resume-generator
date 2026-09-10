@@ -160,31 +160,62 @@ class WorkflowService:
         write_json(run_dir, "editor_versions.json", versions)
         return version
 
+    @staticmethod
+    def _editable_filename(metadata: dict[str, Any]) -> str:
+        """Which YAML file free-form editing reads/writes for this run.
+
+        The singleton editor draft always owns editor_resume.yaml. A COMPLETED
+        run is editable in place on its own exported target_file — there is no
+        publish gate for it, unlike the draft, since there is no shared
+        baseline underneath it to protect. Every other run state (still being
+        processed by the agent pipeline, or awaiting Gate② approval) is not
+        editable this way at all.
+        """
+        if metadata.get("editor_draft"):
+            return "editor_resume.yaml"
+        if metadata.get("status") == "COMPLETED" and metadata.get("target_file"):
+            return metadata["target_file"]
+        raise ResumeAgentError("该 run 当前不支持在线编辑")
+
     def get_editor_draft(self, run_id: str) -> dict[str, Any]:
         run_dir = self.resolve_run(run_id)
-        if not read_metadata(run_dir).get("editor_draft"):
-            raise ResumeAgentError("该 run 不是在线编辑草稿")
-        return read_yaml(run_dir, "editor_resume.yaml")
+        return read_yaml(run_dir, self._editable_filename(read_metadata(run_dir)))
 
     def update_editor_draft(self, run_id: str, resume: dict[str, Any]) -> dict[str, Any]:
         run_dir = self.resolve_run(run_id)
-        if not read_metadata(run_dir).get("editor_draft"):
-            raise ResumeAgentError("该 run 不是在线编辑草稿")
+        metadata = read_metadata(run_dir)
+        filename = self._editable_filename(metadata)
         if not isinstance(resume.get("meta"), dict) or not isinstance(resume.get("sections"), list):
             raise ResumeAgentError("简历必须包含 meta 对象和 sections 数组")
-        # Render before committing so a malformed edit never replaces the last usable draft.
+        # Render before committing so a malformed edit never replaces the last usable copy.
         from .preview_service import _render
 
-        candidate = run_dir / "editor_resume.preview.yaml"
+        candidate = run_dir / "editor_save.preview.yaml"
         write_yaml(run_dir, candidate.name, resume)
         try:
             _render(candidate, "zh")
             _render(candidate, "en")
-            candidate.replace(run_dir / "editor_resume.yaml")
+            candidate.replace(run_dir / filename)
         finally:
             if candidate.exists():
                 candidate.unlink()
-        return update_metadata(run_dir, stage="在线编辑草稿", editor_draft=True)
+        if metadata.get("editor_draft"):
+            return update_metadata(run_dir, stage="在线编辑草稿", editor_draft=True)
+        return update_metadata(run_dir, stage="已手动编辑")
+
+    def has_approved_snapshot(self, run_id: str) -> bool:
+        return (self.resolve_run(run_id) / "approved_snapshot.yaml").exists()
+
+    def restore_approved_snapshot(self, run_id: str) -> dict[str, Any]:
+        run_dir = self.resolve_run(run_id)
+        metadata = read_metadata(run_dir)
+        if metadata.get("status") != "COMPLETED":
+            raise ResumeAgentError("当前状态不能恢复批准时版本")
+        snapshot_path = run_dir / "approved_snapshot.yaml"
+        if not snapshot_path.exists():
+            raise ResumeAgentError("这个 run 没有可恢复的批准快照")
+        write_yaml(run_dir, metadata["target_file"], read_yaml(run_dir, "approved_snapshot.yaml"))
+        return update_metadata(run_dir, stage="已恢复批准时版本")
 
     @traceable(
         name="Resume import",
@@ -747,6 +778,9 @@ class WorkflowService:
             raise ResumeAgentError("Fact Validator 未通过，禁止导出")
         candidate = read_yaml(run_dir, "candidate_resume.yaml")
         target = write_target(run_dir, metadata["output_name"], candidate)
+        # A one-level undo for later free-form edits: what the AI actually produced
+        # and you approved, frozen at the moment of approval.
+        write_yaml(run_dir, "approved_snapshot.yaml", candidate)
         return update_metadata(run_dir, status="COMPLETED", target_file=target.name, stage="已批准导出")
 
     def reject_final(self, run_id: str) -> dict[str, Any]:

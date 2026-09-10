@@ -46,6 +46,7 @@ export interface Translations {
     currentStage: string
     round: string
     generated: string
+    viewInViewer: string
     runFailed: string
     errorTypes: { FactValidationError: string; StrategyComplianceError: string }
     retry: { button: string; retrying: string }
@@ -141,6 +142,7 @@ export interface Translations {
     restore: string
     reject: string
     advanced: string
+    previewTitle: string
   }
   patchBuilder: {
     advancedTitle: string
@@ -173,6 +175,7 @@ export interface Translations {
     version: string
     masterResumeOption: string
     pendingApproval: string
+    edit: string
     download: { yaml: string; html: string; pdf: string }
   }
 }
@@ -230,6 +233,7 @@ const zh: Translations = {
     currentStage: '当前阶段：',
     round: '第 {n} 轮',
     generated: '已生成：{file}',
+    viewInViewer: '在 Viewer 中查看 / 编辑',
     runFailed: '运行失败',
     errorTypes: {
       FactValidationError: '多轮修改后，AI 仍无法在不越界的前提下满足评分要求，需要你确认下方的具体问题。',
@@ -328,6 +332,7 @@ const zh: Translations = {
     restore: '恢复完整原始版本',
     reject: '拒绝本次版本',
     advanced: '高级：人工微调',
+    previewTitle: '候选简历预览',
   },
   patchBuilder: {
     advancedTitle: '高级：人工微调',
@@ -360,6 +365,7 @@ const zh: Translations = {
     version: '版本',
     masterResumeOption: 'Master Resume（基准）',
     pendingApproval: '（待批准，预览候选版本）',
+    edit: '编辑',
     download: { yaml: '原始 YAML', html: 'HTML', pdf: 'PDF' },
   },
 }
@@ -417,6 +423,7 @@ const en: Translations = {
     currentStage: 'Current stage: ',
     round: 'Round {n}',
     generated: 'Generated: {file}',
+    viewInViewer: 'View / edit in Viewer',
     runFailed: 'Run Failed',
     errorTypes: {
       FactValidationError: 'After several rework passes, the AI still could not meet the scoring bar without overstating your experience — please review the specific issues below.',
@@ -515,6 +522,7 @@ const en: Translations = {
     restore: 'Restore Original',
     reject: 'Reject This Version',
     advanced: 'Advanced: Manual Edit',
+    previewTitle: 'Candidate resume preview',
   },
   patchBuilder: {
     advancedTitle: 'Advanced: Manual Edit',
@@ -547,6 +555,7 @@ const en: Translations = {
     version: 'Version',
     masterResumeOption: 'Master Resume (baseline)',
     pendingApproval: '(pending approval, previewing candidate)',
+    edit: 'Edit',
     download: { yaml: 'Original YAML', html: 'HTML', pdf: 'PDF' },
   },
 }

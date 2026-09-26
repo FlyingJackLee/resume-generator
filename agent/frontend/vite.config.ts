@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       '/api': BACKEND_URL,
       '/preview': BACKEND_URL,
+      '/assets': BACKEND_URL,
     },
   },
 })

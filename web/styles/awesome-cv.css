@@ -159,8 +159,10 @@ html:lang(zh) .header .position {
 /* 段标题 */
 .section { margin-top: 14px; }
 .section.page-break-before {
-  break-before: page;
-  page-break-before: always;
+  /* 智能换页：整段尽量不拆分——当前页剩余空间放得下就紧随上一段，
+     放不下才整段换到下一页；仅当整段超过一页时才允许内部拆分。 */
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 .section-title {
   display: flex;

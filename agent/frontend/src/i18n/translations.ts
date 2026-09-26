@@ -177,6 +177,7 @@ export interface Translations {
     pendingApproval: string
     edit: string
     download: { yaml: string; html: string; pdf: string }
+    pageGuides: string
   }
 }
 
@@ -367,6 +368,7 @@ const zh: Translations = {
     pendingApproval: '（待批准，预览候选版本）',
     edit: '编辑',
     download: { yaml: '原始 YAML', html: 'HTML', pdf: 'PDF' },
+    pageGuides: '分页线',
   },
 }
 
@@ -557,6 +559,7 @@ const en: Translations = {
     pendingApproval: '(pending approval, previewing candidate)',
     edit: 'Edit',
     download: { yaml: 'Original YAML', html: 'HTML', pdf: 'PDF' },
+    pageGuides: 'Page breaks',
   },
 }
 

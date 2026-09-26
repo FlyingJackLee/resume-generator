@@ -150,8 +150,8 @@ export function runStreamUrl(runId: string): string {
   return `${BASE}/${runId}/stream`
 }
 
-export function previewUrl(token: string, lang: 'zh' | 'en'): string {
-  return `/preview/${token}?lang=${lang}`
+export function previewUrl(token: string, lang: 'zh' | 'en', guides = false): string {
+  return `/preview/${token}?lang=${lang}${guides ? '&guides=1' : ''}`
 }
 
 export function previewDownloadUrl(token: string, format: 'html' | 'pdf', lang: 'zh' | 'en'): string {

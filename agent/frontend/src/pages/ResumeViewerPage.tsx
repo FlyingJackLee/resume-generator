@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Download, Pencil } from 'lucide-react'
+import { Download, Pencil, SeparatorHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { listRuns, previewDownloadUrl, previewUrl, previewYamlDownloadUrl } from '../api/client'
@@ -15,6 +15,13 @@ export default function ResumeViewerPage() {
   const [searchParams] = useSearchParams()
   const [token, setToken] = useState(searchParams.get('token') ?? 'master')
   const [previewLang, setPreviewLang] = useState<'zh' | 'en'>('zh')
+  // 分页线开关：默认显示导出 PDF 的分页位置，状态在预览页与编辑器间共享
+  const [showGuides, setShowGuides] = useState(() => localStorage.getItem('resume.pageGuides') !== '0')
+  const toggleGuides = () =>
+    setShowGuides((v) => {
+      localStorage.setItem('resume.pageGuides', v ? '0' : '1')
+      return !v
+    })
 
   const { data } = useQuery({
     queryKey: ['runs-for-viewer'],
@@ -56,6 +63,16 @@ export default function ResumeViewerPage() {
             English
           </button>
         </div>
+        <div className="lang-toggle" style={{ display: 'flex', gap: 4 }}>
+          <button
+            className={showGuides ? 'active' : ''}
+            title={t('resumeViewer.pageGuides')}
+            onClick={toggleGuides}
+          >
+            <SeparatorHorizontal size={16} />
+            {t('resumeViewer.pageGuides')}
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Link className="button secondary" to={token === 'master' ? '/editor' : `/editor/${token}`}>
             <Pencil size={16} />
@@ -76,7 +93,7 @@ export default function ResumeViewerPage() {
         </div>
       </div>
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <iframe className="preview-frame" style={{ border: 0, borderRadius: 0 }} title="Resume preview" src={previewUrl(token, previewLang)} />
+        <iframe className="preview-frame" style={{ border: 0, borderRadius: 0 }} title="Resume preview" src={previewUrl(token, previewLang, showGuides)} />
       </div>
     </div>
   )

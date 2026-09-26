@@ -15,18 +15,21 @@ if str(_WEB_DIR) not in sys.path:
 from resume_render import load_data, render_html  # noqa: E402
 
 
-def _render(path: Path, lang: str) -> str:
+def _render(path: Path, lang: str, show_page_guides: bool = False) -> str:
     if lang not in ("zh", "en"):
         raise ResumeAgentError("lang 必须是 zh 或 en")
     return render_html(
         load_data(path=path), lang,
         css_override=TemplateService().css(asset_prefix="/api/v1/resume/template-assets/"),
         show_language_toggle=False,
+        show_page_guides=show_page_guides,
     )
 
 
-def render_master_preview(lang: str, master_path: Path = MASTER_RESUME_PATH) -> str:
-    return _render(master_path, lang)
+def render_master_preview(
+    lang: str, master_path: Path = MASTER_RESUME_PATH, show_page_guides: bool = False
+) -> str:
+    return _render(master_path, lang, show_page_guides=show_page_guides)
 
 
 def resolve_run_preview_source(run_dir: Path, metadata: dict[str, Any]) -> Path:
@@ -44,5 +47,7 @@ def resolve_run_preview_source(run_dir: Path, metadata: dict[str, Any]) -> Path:
     raise ResumeAgentError("这个 run 还没有可预览的简历内容")
 
 
-def render_run_preview(run_dir: Path, metadata: dict[str, Any], lang: str) -> str:
-    return _render(resolve_run_preview_source(run_dir, metadata), lang)
+def render_run_preview(
+    run_dir: Path, metadata: dict[str, Any], lang: str, show_page_guides: bool = False
+) -> str:
+    return _render(resolve_run_preview_source(run_dir, metadata), lang, show_page_guides=show_page_guides)

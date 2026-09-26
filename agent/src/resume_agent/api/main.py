@@ -32,7 +32,7 @@ from resume_agent.services.resume_labels import path_label as _path_label
 from resume_agent.services.run_store import read_json, read_yaml
 from resume_agent.services.workflow_service import WorkflowService
 from resume_agent.services.template_service import TemplateService
-from resume_agent.paths import MASTER_EXPORT_DIR, MASTER_RESUME_PATH, TEMPLATES_ROOT
+from resume_agent.paths import MASTER_EXPORT_DIR, MASTER_RESUME_PATH, PROJECT_ROOT, TEMPLATES_ROOT
 
 
 logger = logging.getLogger(__name__)
@@ -155,6 +155,13 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
     TEMPLATES_ROOT.mkdir(parents=True, exist_ok=True)
     app.mount(
         "/api/v1/resume/template-assets", StaticFiles(directory=str(TEMPLATES_ROOT)), name="template-assets"
+    )
+    # Base-CSS @font-face URLs are relative ("../assets/fonts/..."), which from
+    # the /preview/{token} document URL resolves to /assets/... — serve them so
+    # the preview iframe measures text with the same Roboto metrics the PDF
+    # export (file:// + document.fonts.ready) uses.
+    app.mount(
+        "/assets", StaticFiles(directory=str(PROJECT_ROOT / "web" / "assets")), name="resume-assets"
     )
     if service_factory is not None:
         async def override_workflow() -> WorkflowService:
@@ -381,12 +388,12 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         return workflow.update_notes(run_id, payload.notes)
 
     @app.get("/preview/{token}", response_class=HTMLResponse)
-    async def preview(token: str, workflow: ServiceDep, lang: str = "zh"):
+    async def preview(token: str, workflow: ServiceDep, lang: str = "zh", guides: bool = False):
         if token == "master":
-            return render_master_preview(lang)
+            return render_master_preview(lang, show_page_guides=guides)
         run_dir = workflow.resolve_run(token)
         metadata = workflow.get(token)
-        return render_run_preview(run_dir, metadata, lang)
+        return render_run_preview(run_dir, metadata, lang, show_page_guides=guides)
 
     def _resolve_preview_source(token: str, workflow: WorkflowService) -> tuple[Path, Path]:
         """(source_yaml_path, scratch_dir to write generated files into) for a preview token."""

@@ -60,7 +60,7 @@ def make_section_title(data):
     return _title
 
 
-def render_html(data, lang, css_override=None, show_language_toggle=True):
+def render_html(data, lang, css_override=None, show_language_toggle=True, show_page_guides=False):
     env = Environment(
         loader=FileSystemLoader(str(ROOT / "templates")),
         autoescape=select_autoescape(["html", "j2"]),
@@ -77,4 +77,5 @@ def render_html(data, lang, css_override=None, show_language_toggle=True):
         meta=data["meta"], sections=data["sections"],
         footer_more=data["meta"]["footer_more"],
         show_language_toggle=show_language_toggle,
+        show_page_guides=show_page_guides,
     )

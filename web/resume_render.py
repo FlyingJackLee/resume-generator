@@ -60,7 +60,15 @@ def make_section_title(data):
     return _title
 
 
-def render_html(data, lang, css_override=None, show_language_toggle=True, show_page_guides=False):
+def render_html(
+    data, lang, css_override=None, show_language_toggle=True, show_page_guides=False,
+    photo_base: str = "..",
+):
+    """渲染简历 HTML。
+
+    photo_base 是照片 URL 的前缀基底：默认 ".."（相对 web/ 打开，如 web/build
+    下的产物）；HTTP 预览与 file:// 导出各自传入可解析的绝对/站点路径。
+    """
     env = Environment(
         loader=FileSystemLoader(str(ROOT / "templates")),
         autoescape=select_autoescape(["html", "j2"]),
@@ -74,6 +82,7 @@ def render_html(data, lang, css_override=None, show_language_toggle=True, show_p
     tpl = env.get_template("resume.html.j2")
     return tpl.render(
         lang=lang, css=css, photo_exists=photo_exists,
+        photo_base=photo_base,
         meta=data["meta"], sections=data["sections"],
         footer_more=data["meta"]["footer_more"],
         show_language_toggle=show_language_toggle,

@@ -70,7 +70,15 @@ class TemplateService:
         active = self.active_id()
         return [{**template, "active": template["id"] == active} for template in templates]
 
-    def css(self, template_id: str | None = None, asset_prefix: str | None = None) -> str:
+    def css(self, template_id: str | None = None, asset_prefix: str | None = None,
+            base_asset_url: str | None = None) -> str:
+        """组装最终 CSS。
+
+        asset_prefix 重写自定义模板 theme.css 里的 url(assets/...) 引用；
+        base_asset_url 重写基础样式的 url("../assets/...) 字体引用——预览传
+        "/assets"（由 API 挂载提供），file:// 导出传 web/assets 的 file:// URI，
+        缺省保持相对路径（web/build 下的产物自然解析）。
+        """
         template = self.get(template_id or self.active_id())
         if template["builtin"]:
             theme = template.get("theme", "")
@@ -82,8 +90,11 @@ class TemplateService:
                     lambda match: f"url('{asset_prefix}{template['id']}/assets/{match.group(2)}')",
                     theme,
                 )
+        base = BASE_CSS
+        if base_asset_url is not None:
+            base = base.replace('url("../assets/', f'url("{base_asset_url}/')
         hidden = "\n".join(f"{HIDE_RULES[item]} {{ display:none !important; }}" for item in template.get("unsupported", []) if item in HIDE_RULES)
-        return BASE_CSS + "\n" + theme + "\n" + hidden
+        return base + "\n" + theme + "\n" + hidden
 
     def import_zip(self, archive: Path) -> dict[str, Any]:
         with zipfile.ZipFile(archive) as package:

@@ -13,7 +13,7 @@
   {% endif %}
 
   <header class="header">
-    {% if photo_exists %}<img class="photo" src="../{{ meta.photo }}" alt="">{% endif %}
+    {% if photo_exists %}<img class="photo" src="{{ photo_base }}/{{ meta.photo }}" alt="">{% endif %}
     <div class="name">
       {% set full = meta.name | L %}
       {% if lang == 'en' %}

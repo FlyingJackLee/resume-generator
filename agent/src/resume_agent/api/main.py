@@ -293,7 +293,9 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
             run_dir = workflow.resolve_run(run_id)
             resume = workflow.get_editor_draft(run_id)
             html_path = run_dir / f"resume.{lang}.html"
-            html_path.write_text(_render(run_dir / "editor_resume.yaml", lang), encoding="utf-8")
+            html_path.write_text(
+                _render(run_dir / "editor_resume.yaml", lang, for_file_export=True), encoding="utf-8"
+            )
             if format == "html":
                 return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
             from resume_render import localize
@@ -412,7 +414,7 @@ def create_app(service_factory: Callable[[], WorkflowService] | None = None) -> 
         try:
             source_path, scratch_dir = _resolve_preview_source(token, workflow)
             html_path = scratch_dir / f"resume.{lang}.html"
-            html_path.write_text(_render(source_path, lang), encoding="utf-8")
+            html_path.write_text(_render(source_path, lang, for_file_export=True), encoding="utf-8")
             if format == "html":
                 return FileResponse(html_path, filename=f"resume.{lang}.html", media_type="text/html")
             from resume_render import load_data, localize

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from resume_agent.errors import ResumeAgentError
-from resume_agent.paths import MASTER_RESUME_PATH, PROJECT_ROOT
+from resume_agent.paths import MASTER_RESUME_PATH, PROJECT_ROOT, TEMPLATES_ROOT
 from resume_agent.services.template_service import TemplateService
 
 _WEB_DIR = PROJECT_ROOT / "web"
@@ -15,14 +15,31 @@ if str(_WEB_DIR) not in sys.path:
 from resume_render import load_data, render_html  # noqa: E402
 
 
-def _render(path: Path, lang: str, show_page_guides: bool = False) -> str:
+def _render(path: Path, lang: str, show_page_guides: bool = False, for_file_export: bool = False) -> str:
+    """渲染预览/导出 HTML。
+
+    for_file_export=True 用于下载端点：HTML 会被 Chromium 以 file:// 打开导出
+    PDF，而基础样式的字体与模板资源是相对/HTTP 路径，在 agent/data 下的落盘
+    位置解析不到，导致 PDF 静默回退到系统字体。该模式把这些引用改为绝对
+    file:// URL，保证导出 PDF 与预览使用同一套 webfont（分页位置才一致）。
+    """
     if lang not in ("zh", "en"):
         raise ResumeAgentError("lang 必须是 zh 或 en")
+    if for_file_export:
+        css_override = TemplateService().css(
+            asset_prefix=f"{TEMPLATES_ROOT.as_uri()}",
+            base_asset_url=(PROJECT_ROOT / "web" / "assets").as_uri(),
+        )
+        photo_base = (PROJECT_ROOT / "web").as_uri()
+    else:
+        css_override = TemplateService().css(asset_prefix="/api/v1/resume/template-assets/")
+        photo_base = ".."
     return render_html(
         load_data(path=path), lang,
-        css_override=TemplateService().css(asset_prefix="/api/v1/resume/template-assets/"),
+        css_override=css_override,
         show_language_toggle=False,
         show_page_guides=show_page_guides,
+        photo_base=photo_base,
     )
 
 
